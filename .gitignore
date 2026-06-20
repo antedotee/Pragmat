@@ -9,6 +9,12 @@ dist-ssr
 # rust / tauri (build artifacts only — Cargo.toml & Cargo.lock MUST be committed)
 src-tauri/target
 
+# tauri-generated mobile icons — this app ships desktop only (tauri.conf.json
+# references the desktop icons only). Regenerate with `tauri icon` if you ever
+# target Android/iOS.
+src-tauri/icons/android/
+src-tauri/icons/ios/
+
 # logs
 logs
 *.log

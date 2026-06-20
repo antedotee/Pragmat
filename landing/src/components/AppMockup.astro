@@ -1,0 +1,249 @@
+---
+// A stylised Pragmat window — sidebar + task list — built from elements (no
+// screenshot asset). Mirrors the real app: translucent sidebar, sliding
+// selection pill, Today/Future buckets, Bursts & Arcs, a progress ring.
+import Icon from "./Icon.astro";
+
+const nav = [
+  { label: "Today", key: "⌘1", active: true },
+  { label: "Future", key: "⌘2", active: false },
+];
+const collections = [
+  { label: "Launch checklist", kind: "burst", done: 3, total: 5 },
+  { label: "Health", kind: "arc" },
+  { label: "Reading", kind: "arc" },
+];
+const todos = [
+  { text: "Draft the release notes", done: false, due: "Today" },
+  { text: "Reply to the beta testers", done: false, due: null },
+  { text: "Ship the icon update", done: true, due: null },
+  { text: "Plan next burst", done: false, due: "Fri" },
+];
+---
+
+<div class="mockup outlined" role="img" aria-label="The Pragmat app: a Today list with to-dos, a sidebar of bursts and arcs">
+  <!-- title bar -->
+  <div class="mk-titlebar">
+    <span class="mk-dot" style="background:#ec6a5e"></span>
+    <span class="mk-dot" style="background:#f4bf4f"></span>
+    <span class="mk-dot" style="background:#61c554"></span>
+  </div>
+
+  <div class="mk-body">
+    <!-- sidebar -->
+    <aside class="mk-sidebar">
+      <div class="mk-brand">
+        <Icon size={18} />
+        <span>Pragmat</span>
+      </div>
+      {nav.map((n) => (
+        <div class={`mk-navitem ${n.active ? "is-active" : ""}`}>
+          <span>{n.label}</span>
+          <span class="mk-navkey">{n.key}</span>
+        </div>
+      ))}
+      <div class="mk-navlabel">Collections</div>
+      {collections.map((c) => (
+        <div class="mk-navitem">
+          <span class={`mk-shape mk-shape-${c.kind}`}></span>
+          <span class="mk-grow">{c.label}</span>
+          {c.kind === "burst" && (
+            <span class="mk-count">{c.done}/{c.total}</span>
+          )}
+        </div>
+      ))}
+    </aside>
+
+    <!-- board -->
+    <section class="mk-board">
+      <div class="mk-board-head">
+        <h3>Today</h3>
+        <span class="mk-date">Sat, Jun 21</span>
+      </div>
+      <ul class="mk-list">
+        {todos.map((t) => (
+          <li class={`mk-todo ${t.done ? "is-done" : ""}`}>
+            <span class="mk-check"></span>
+            <span class="mk-todo-text">{t.text}</span>
+            {t.due && <span class="mk-due">{t.due}</span>}
+          </li>
+        ))}
+      </ul>
+      <div class="mk-newrow">
+        <span class="mk-plus">+</span>
+        <span>New to-do</span>
+        <span class="mk-navkey mk-newrow-key">⌘N</span>
+      </div>
+    </section>
+  </div>
+</div>
+
+<style>
+  .mockup {
+    width: 100%;
+    max-width: 540px;
+    border-radius: 16px;
+    overflow: hidden;
+    background: color-mix(in oklab, var(--color-elevated) 78%, var(--color-base));
+    box-shadow: 0 2px 6px rgba(76, 79, 105, 0.08),
+      0 40px 80px -40px rgba(32, 159, 181, 0.45),
+      inset 0 0 0 1px var(--color-hairline);
+    font-size: 13px;
+    color: var(--color-text);
+    user-select: none;
+  }
+  .mk-titlebar {
+    display: flex;
+    gap: 7px;
+    padding: 12px 14px;
+    background: color-mix(in oklab, var(--color-mantle) 80%, var(--color-elevated));
+    border-bottom: 1px solid var(--color-crust);
+  }
+  .mk-dot {
+    width: 11px;
+    height: 11px;
+    border-radius: 50%;
+  }
+  .mk-body {
+    display: grid;
+    grid-template-columns: 168px 1fr;
+    min-height: 340px;
+  }
+  .mk-sidebar {
+    padding: 14px 10px;
+    background: color-mix(in oklab, var(--color-momentum-1) 16%, var(--color-elevated));
+    border-right: 1px solid var(--color-crust);
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .mk-brand {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-family: var(--font-display);
+    font-size: 17px;
+    font-weight: 600;
+    color: var(--color-text);
+    padding: 2px 6px 12px;
+  }
+  .mk-navitem {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 8px;
+    border-radius: 7px;
+    color: var(--color-subtext1);
+  }
+  .mk-navitem.is-active {
+    background: color-mix(in oklab, var(--color-sapphire) 16%, var(--color-elevated));
+    color: var(--color-text);
+    font-weight: 550;
+  }
+  .mk-grow { flex: 1; }
+  .mk-navkey {
+    margin-left: auto;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--color-overlay0);
+    font-variant-numeric: tabular-nums;
+  }
+  .mk-navlabel {
+    font-size: 10.5px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--color-overlay0);
+    padding: 14px 8px 4px;
+  }
+  .mk-shape {
+    width: 9px;
+    height: 9px;
+    flex: none;
+  }
+  .mk-shape-burst {
+    border-radius: 2px;
+    background: var(--color-peach);
+  }
+  .mk-shape-arc {
+    border-radius: 50%;
+    box-shadow: inset 0 0 0 1.5px var(--color-sapphire);
+  }
+  .mk-count {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--color-overlay0);
+    font-variant-numeric: tabular-nums;
+  }
+  .mk-board { padding: 16px 18px; }
+  .mk-board-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    margin-bottom: 12px;
+  }
+  .mk-board-head h3 {
+    margin: 0;
+    font-family: var(--font-display);
+    font-size: 22px;
+    font-weight: 600;
+    color: var(--color-text);
+  }
+  .mk-date {
+    font-size: 12px;
+    color: var(--color-overlay0);
+    font-variant-numeric: tabular-nums;
+  }
+  .mk-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+  }
+  .mk-todo {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 4px;
+    border-bottom: 1px solid color-mix(in oklab, var(--color-crust) 70%, transparent);
+  }
+  .mk-check {
+    width: 16px;
+    height: 16px;
+    border-radius: 5px;
+    flex: none;
+    box-shadow: inset 0 0 0 1.5px var(--color-surface1);
+  }
+  .mk-todo.is-done .mk-check {
+    background: var(--color-sapphire);
+    box-shadow: inset 0 0 0 1.5px var(--color-sapphire);
+  }
+  .mk-todo.is-done .mk-todo-text {
+    color: var(--color-overlay0);
+    text-decoration: line-through;
+  }
+  .mk-todo-text { flex: 1; }
+  .mk-due {
+    font-size: 11px;
+    font-weight: 550;
+    color: var(--color-peach);
+    background: color-mix(in oklab, var(--color-peach) 12%, var(--color-elevated));
+    padding: 2px 7px;
+    border-radius: 999px;
+  }
+  .mk-newrow {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 12px;
+    padding: 8px 4px;
+    color: var(--color-overlay0);
+  }
+  .mk-plus {
+    width: 16px;
+    text-align: center;
+    color: var(--color-sapphire);
+    font-weight: 600;
+  }
+  .mk-newrow-key { margin-left: auto; }
+</style>

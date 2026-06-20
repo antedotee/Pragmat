@@ -1,0 +1,203 @@
+---
+import "@fontsource/cormorant-garamond/400.css";
+import "@fontsource/cormorant-garamond/500.css";
+import "@fontsource/cormorant-garamond/600.css";
+import "@fontsource/cormorant-garamond/700.css";
+import "../styles/global.css";
+
+interface Props {
+  title?: string;
+  description?: string;
+}
+const {
+  title = "Pragmat — build momentum, not a backlog",
+  description = "A fast, keyboard-first task app for macOS, Windows, and Linux. Today and Future, Bursts you finish and Arcs you tend. Open source, built with Tauri.",
+} = Astro.props;
+const canonical = new URL(Astro.url.pathname, Astro.site).href;
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <!-- Set theme + mark JS *before* paint: no theme flash, no animation flash.
+         With JS off, content stays visible (hidden states are .js-gated) and the
+         theme falls back to the OS preference. The hero entrance is pure CSS
+         keyed off the .js flag, so it plays without waiting for the module. -->
+    <script is:inline>
+      (function () {
+        try {
+          var t = localStorage.getItem("theme");
+          if (!t)
+            t = matchMedia("(prefers-color-scheme: dark)").matches
+              ? "dark"
+              : "light";
+          if (t === "dark") document.documentElement.classList.add("dark");
+        } catch (e) {}
+      })();
+      document.documentElement.classList.add("js");
+      window.setTimeout(function () {
+        if (!window.__pragmatAnimated)
+          document.documentElement.classList.add("anim-failed");
+      }, 2600);
+    </script>
+    <title>{title}</title>
+    <meta name="description" content={description} />
+    <link rel="canonical" href={canonical} />
+    <link rel="icon" type="image/svg+xml" href="/pragmat-icon.svg" />
+    <meta name="theme-color" content="#48cde5" />
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:url" content={canonical} />
+    <meta property="og:image" content="/pragmat-icon.svg" />
+    <meta name="twitter:card" content="summary" />
+  </head>
+  <body>
+    <div class="scroll-progress" aria-hidden="true"></div>
+    <slot />
+
+    <script>
+      // CSS-first animation engine. JS only toggles classes / attributes — every
+      // visible motion is a CSS transition or @keyframes, so it survives OS Reduce
+      // Motion (WebKit suppresses element.animate(), not author CSS — see CLAUDE.md).
+      const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+      window.__pragmatAnimated = true;
+
+      // ---------- dark-mode toggle ----------
+      const themeBtn = document.querySelector("[data-theme-toggle]");
+      if (themeBtn) {
+        const setColor = (dark: boolean) => {
+          themeBtn.setAttribute("aria-pressed", String(dark));
+          document
+            .querySelector('meta[name="theme-color"]')
+            ?.setAttribute("content", dark ? "#1e1e2e" : "#48cde5");
+        };
+        setColor(document.documentElement.classList.contains("dark"));
+        themeBtn.addEventListener("click", () => {
+          const el = document.documentElement;
+          el.classList.add("theme-transition");
+          const dark = el.classList.toggle("dark");
+          try {
+            localStorage.setItem("theme", dark ? "dark" : "light");
+          } catch (e) {}
+          setColor(dark);
+          setTimeout(() => el.classList.remove("theme-transition"), 340);
+        });
+      }
+
+      // ---------- reveals + squiggle draw + scramble (class toggle → CSS animates) ----------
+      const io = new IntersectionObserver(
+        (entries) => {
+          for (const e of entries) {
+            if (!e.isIntersecting) continue;
+            const el = e.target as HTMLElement;
+            el.classList.add("is-in");
+            if (el.hasAttribute("data-scramble")) scramble(el);
+            io.unobserve(el);
+          }
+        },
+        { threshold: 0.16, rootMargin: "0px 0px -8% 0px" }
+      );
+      document
+        .querySelectorAll("[data-reveal],[data-reveal-stagger],[data-draw],[data-scramble]")
+        .forEach((el) => io.observe(el));
+
+      // ---------- TextLoop (CSS-transition flip) ----------
+      document.querySelectorAll<HTMLElement>("[data-textloop]").forEach((root) => {
+        const words = Array.from(root.querySelectorAll<HTMLElement>(".tl-word"));
+        if (words.length < 2) return;
+        // size the clip box once to the widest word → no width/height animation
+        const fit = () => {
+          let w = 0,
+            h = 0;
+          for (const el of words) {
+            w = Math.max(w, el.offsetWidth);
+            h = Math.max(h, el.offsetHeight);
+          }
+          root.style.width = `${Math.ceil(w)}px`;
+          root.style.height = `${Math.ceil(h)}px`;
+        };
+        fit();
+        addEventListener("resize", fit, { passive: true });
+        let i = 0;
+        const interval = Number(root.dataset.interval) || 2400;
+        setInterval(() => {
+          const cur = words[i];
+          cur.removeAttribute("data-active");
+          cur.setAttribute("data-leaving", "");
+          setTimeout(() => cur.removeAttribute("data-leaving"), 560);
+          i = (i + 1) % words.length;
+          words[i].setAttribute("data-active", "");
+        }, interval);
+      });
+
+      // ---------- TextScramble (decode on view) ----------
+      function scramble(el: HTMLElement) {
+        const final = el.dataset.text ?? el.textContent ?? "";
+        if (reduce) {
+          el.textContent = final;
+          return;
+        }
+        const glyphs = "!<>-_\\/[]{}—=+*^?#________";
+        let frame = 0;
+        const q = Array.from(final).map((to, i) => ({
+          to,
+          start: Math.floor(i * 1.6 + Math.random() * 6),
+          end: Math.floor(i * 1.6 + 10 + Math.random() * 12),
+          ch: "",
+        }));
+        const tick = () => {
+          let out = "";
+          let done = 0;
+          for (const c of q) {
+            if (frame >= c.end) {
+              done++;
+              out += c.to;
+            } else if (frame >= c.start) {
+              if (!c.ch || Math.random() < 0.3)
+                c.ch = glyphs[Math.floor(Math.random() * glyphs.length)];
+              out += `<span style="opacity:.5">${c.ch}</span>`;
+            }
+          }
+          el.innerHTML = out;
+          if (done < q.length) {
+            frame++;
+            requestAnimationFrame(tick);
+          } else {
+            el.textContent = final;
+          }
+        };
+        tick();
+      }
+
+      // ---------- chrome: nav elevation, scroll progress, dither parallax ----------
+      const header = document.querySelector("header");
+      const bar = document.querySelector<HTMLElement>(".scroll-progress");
+      const dither = document.querySelector<HTMLElement>(".dither-wrap");
+      const hero = document.querySelector<HTMLElement>("#top");
+      let ticking = false;
+      const onScroll = () => {
+        if (ticking) return;
+        ticking = true;
+        requestAnimationFrame(() => {
+          const y = window.scrollY;
+          if (header) header.classList.toggle("scrolled", y > 8);
+          if (bar) {
+            const max = document.documentElement.scrollHeight - window.innerHeight;
+            bar.style.transform = `scaleX(${max > 0 ? Math.min(1, y / max) : 0})`;
+          }
+          // parallax is continuous movement → skip it under Reduce Motion
+          if (!reduce && dither && hero) {
+            const p = Math.min(1, y / hero.offsetHeight);
+            dither.style.transform = `translateY(${(p * 120).toFixed(1)}px)`;
+          }
+          ticking = false;
+        });
+      };
+      onScroll();
+      addEventListener("scroll", onScroll, { passive: true });
+    </script>
+  </body>
+</html>

@@ -1,0 +1,90 @@
+---
+// Full-bleed dithered backdrop for the hero — the "color + soft, contrast 80"
+// look from the cult-ui DitherImage demo, done as one inline SVG (no image
+// asset, no JS, scales to any viewport).
+//
+// The scene is the icon's own metaphor: a blue→cyan sky, a peach sun, and the
+// rising momentum dots. The #ph-dither filter then dithers it:
+//   turbulence → grayscale threshold field → add to source (single clamp, so
+//   it can darken AND lighten) → posterize. Stochastic ordered-ish dither that
+//   keeps colour. Tune: `k3` = dither strength, `baseFrequency` = grain size,
+//   `tableValues` = number of colour bands.
+interface Props {
+  class?: string;
+}
+const { class: className = "" } = Astro.props;
+const levels = "0 0.16 0.32 0.46 0.6 0.74 0.88 1";
+---
+
+<div class={`dither-wrap ${className}`} aria-hidden="true">
+  <svg
+    class="dither-svg"
+    viewBox="0 0 1200 760"
+    preserveAspectRatio="xMidYMid slice"
+    xmlns="http://www.w3.org/2000/svg"
+  >
+    <defs>
+      <linearGradient id="ph-sky" x1="0" y1="0" x2="0.3" y2="1">
+        <stop offset="0" stop-color="#d3ecf8"></stop>
+        <stop offset="0.5" stop-color="#afd6ee"></stop>
+        <stop offset="1" stop-color="#48cde5"></stop>
+      </linearGradient>
+      <radialGradient id="ph-sun" cx="0.79" cy="0.24" r="0.62">
+        <stop offset="0" stop-color="#ffe2c2"></stop>
+        <stop offset="0.18" stop-color="#fea65a"></stop>
+        <stop offset="0.4" stop-color="#fe640b" stop-opacity="0.5"></stop>
+        <stop offset="1" stop-color="#fe640b" stop-opacity="0"></stop>
+      </radialGradient>
+      <filter
+        id="ph-dither"
+        x="0"
+        y="0"
+        width="100%"
+        height="100%"
+        color-interpolation-filters="sRGB"
+      >
+        <feTurbulence
+          type="fractalNoise"
+          baseFrequency="0.62"
+          numOctaves="1"
+          seed="11"
+          stitchTiles="stitch"
+          result="n"></feTurbulence>
+        <feColorMatrix
+          in="n"
+          type="matrix"
+          values="0.33 0.33 0.33 0 0
+                  0.33 0.33 0.33 0 0
+                  0.33 0.33 0.33 0 0
+                  0    0    0    0 1"
+          result="g"></feColorMatrix>
+        <feComposite
+          in="SourceGraphic"
+          in2="g"
+          operator="arithmetic"
+          k1="0"
+          k2="1"
+          k3="0.5"
+          k4="-0.25"
+          result="s"></feComposite>
+        <feComponentTransfer in="s">
+          <feFuncR type="discrete" tableValues={levels}></feFuncR>
+          <feFuncG type="discrete" tableValues={levels}></feFuncG>
+          <feFuncB type="discrete" tableValues={levels}></feFuncB>
+        </feComponentTransfer>
+      </filter>
+    </defs>
+
+    <g filter="url(#ph-dither)">
+      <rect width="1200" height="760" fill="url(#ph-sky)"></rect>
+      <rect width="1200" height="760" fill="url(#ph-sun)"></rect>
+      <circle cx="946" cy="182" r="82" fill="#fe640b"></circle>
+      <g fill="#ffffff">
+        <circle cx="232" cy="664" r="11" fill-opacity="0.28"></circle>
+        <circle cx="372" cy="568" r="15" fill-opacity="0.4"></circle>
+        <circle cx="520" cy="470" r="20" fill-opacity="0.54"></circle>
+        <circle cx="690" cy="356" r="26" fill-opacity="0.7"></circle>
+      </g>
+    </g>
+  </svg>
+</div>

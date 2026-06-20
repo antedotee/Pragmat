@@ -1,0 +1,43 @@
+---
+// TextEffect — per-char (or per-word) fade-in, ported from motion-primitives'
+// <TextEffect per="char" preset="fade">. Split happens at build time; CSS does
+// the staggered fade+blur. Chars are grouped into nowrap words so lines only
+// ever break between words, never mid-word. The real text is exposed via
+// aria-label; the split spans are aria-hidden, so screen readers read it whole.
+interface Props {
+  text: string;
+  as?: keyof HTMLElementTagNameMap;
+  per?: "char" | "word";
+  delay?: number; // stagger offset, in "units"
+  class?: string;
+}
+const {
+  text,
+  as = "span",
+  per = "char",
+  delay = 0,
+  class: className = "",
+} = Astro.props;
+const Tag = as as any;
+const words = text.split(" ");
+let i = 0;
+---
+
+<Tag class={`te ${className}`} aria-label={text}>
+  {
+    words.map((word, wi) => (
+      <Fragment>
+        {wi > 0 ? <span class="te-space" aria-hidden="true">{" "}</span> : null}
+        <span class="te-word" aria-hidden="true">
+          {per === "word" ? (
+            <span class="te-char" style={`--i:${i++ + delay}`}>{word}</span>
+          ) : (
+            Array.from(word).map((ch) => (
+              <span class="te-char" style={`--i:${i++ + delay}`}>{ch}</span>
+            ))
+          )}
+        </span>
+      </Fragment>
+    ))
+  }
+</Tag>

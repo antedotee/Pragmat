@@ -1,0 +1,578 @@
+@import "tailwindcss";
+
+/* ============================================================================
+   Theme tokens — Tailwind v4 @theme generates utilities (bg-base, text-peach…)
+   Palette: pulled straight from pragmat-icon.svg (the blue→cyan "momentum"
+   gradient + the #fe640b peach sun) sitting on a Catppuccin Latte neutral set.
+   ========================================================================== */
+@theme {
+  /* Catppuccin Latte — neutrals */
+  --color-base: #eff1f5;
+  --color-mantle: #e6e9ef;
+  --color-crust: #dce0e8;
+  --color-surface0: #ccd0da;
+  --color-surface1: #bcc0cc;
+  --color-surface2: #acb0be;
+  --color-overlay0: #9ca0b0;
+  --color-overlay1: #8c8fa1;
+  --color-text: #4c4f69;
+  --color-subtext1: #5c5f77;
+  --color-subtext0: #6c6f85;
+
+  /* Catppuccin Latte — accents */
+  --color-blue: #1e66f5;
+  --color-sky: #04a5e5;
+  --color-sapphire: #209fb5;
+  --color-teal: #179299;
+  --color-peach: #fe640b;
+  --color-peach-deep: #d9530a;
+  --color-maroon: #e64553;
+  --color-lavender: #7287fd;
+
+  /* Brand — straight off the icon gradient stops */
+  --color-momentum-1: #afd6ee;
+  --color-momentum-2: #48cde5;
+
+  /* Brand peach for the primary CTA — stays vivid in both themes (the accent
+     --color-peach above is allowed to soften in dark for legible text). */
+  --color-brand-peach: #fe640b;
+  --color-brand-peach-deep: #d9530a;
+
+  /* Semantic surfaces — these flip in .dark, so cards/keycaps/chips/mockup
+     recolour for free (most of the site reads colour from these tokens). */
+  --color-elevated: #ffffff;
+  --color-elevated-2: #f6f8fc;
+  --color-hairline: rgba(0, 0, 0, 0.08);
+  /* dark ink for text on the always-bright momentum gradient (fixed both themes) */
+  --color-ink-bright: #2b2c44;
+
+  --font-display: "Cormorant Garamond", Georgia, "Times New Roman", serif;
+  --font-sans: ui-sans-serif, -apple-system, BlinkMacSystemFont, "SF Pro Text",
+    "Segoe UI", system-ui, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", "Geist Mono", Menlo, monospace;
+
+  /* Emil's stronger curves — the built-in CSS easings are too weak */
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+  /* spring-like overshoot for entrances (CSS can't spring, this is the next best) */
+  --spring: cubic-bezier(0.22, 1.18, 0.4, 1);
+}
+
+/* ============================ dark mode ================================== */
+/* Manual toggle: `.dark` on <html> (set pre-paint in Base.astro). We only flip
+   the CSS variables — every Tailwind util and inline var() consumer recolours
+   automatically. Neutrals → Catppuccin Mocha; accents → Mocha (legible on dark). */
+@custom-variant dark (&:where(.dark, .dark *));
+
+:root {
+  color-scheme: light;
+}
+/* `:root.dark` (0,2,0) outranks @theme's `:root` (0,1,0) so the var overrides win */
+:root.dark {
+  color-scheme: dark;
+
+  --color-base: #1e1e2e;
+  --color-mantle: #181825;
+  --color-crust: #313244; /* visible hairline on dark */
+  --color-surface0: #313244;
+  --color-surface1: #45475a;
+  --color-surface2: #585b70;
+  --color-overlay0: #7f849c;
+  --color-overlay1: #9399b2;
+  --color-text: #cdd6f4;
+  --color-subtext1: #bac2de;
+  --color-subtext0: #a6adc8;
+
+  --color-blue: #89b4fa;
+  --color-sky: #89dceb;
+  --color-sapphire: #74c7ec;
+  --color-teal: #94e2d5;
+  --color-peach: #fab387;
+  --color-peach-deep: #f2a06a;
+  --color-maroon: #eba0ac;
+  --color-lavender: #b4befe;
+
+  --color-elevated: #262638;
+  --color-elevated-2: #2b2b3f;
+  --color-hairline: rgba(255, 255, 255, 0.1);
+}
+
+/* Momentary cross-fade only while toggling — not a permanent transition. The JS
+   adds .theme-transition for ~340ms around the class flip, then removes it. */
+.theme-transition,
+.theme-transition *,
+.theme-transition *::before,
+.theme-transition *::after {
+  transition: background-color 0.3s var(--ease-out), color 0.3s var(--ease-out),
+    border-color 0.3s var(--ease-out), box-shadow 0.3s var(--ease-out),
+    outline-color 0.3s var(--ease-out), fill 0.3s var(--ease-out) !important;
+}
+
+/* ============================== base ===================================== */
+html {
+  scroll-behavior: smooth;
+  -webkit-text-size-adjust: 100%;
+}
+body {
+  margin: 0;
+  background: var(--color-base);
+  color: var(--color-text);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased; /* crisper text on macOS */
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+h1,
+h2,
+h3 {
+  text-wrap: balance;
+}
+p {
+  text-wrap: pretty;
+}
+::selection {
+  background: color-mix(in oklab, var(--color-peach) 28%, transparent);
+}
+:focus-visible {
+  outline: 2px solid var(--color-blue);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* ============================== buttons ================================== */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  font-weight: 550;
+  font-size: 0.95rem;
+  line-height: 1;
+  padding: 0.8rem 1.25rem;
+  border-radius: 0.85rem;
+  /* scale on press + colour, never `transition: all` */
+  transition: transform 160ms var(--ease-out), background-color 180ms var(--ease-out),
+    box-shadow 220ms var(--ease-out), color 180ms var(--ease-out);
+  will-change: transform;
+}
+.btn:active {
+  transform: scale(0.96); /* tactile — never below 0.95 */
+}
+.btn-sm {
+  padding: 0.55rem 1rem;
+  font-size: 0.875rem;
+  border-radius: 0.7rem;
+}
+.btn-lg {
+  padding: 1rem 1.75rem;
+  font-size: 1rem;
+  border-radius: 0.95rem;
+}
+.btn-primary {
+  background: var(--color-brand-peach);
+  color: #fff;
+  box-shadow: 0 1px 2px rgba(217, 83, 10, 0.4),
+    0 10px 26px -10px rgba(254, 100, 11, 0.6);
+}
+.btn-ghost {
+  background: color-mix(in oklab, var(--color-elevated) 60%, transparent);
+  color: var(--color-text);
+  box-shadow: inset 0 0 0 1px var(--color-surface0);
+}
+@media (hover: hover) and (pointer: fine) {
+  .btn-primary:hover {
+    background: var(--color-brand-peach-deep);
+    box-shadow: 0 1px 2px rgba(217, 83, 10, 0.45),
+      0 16px 34px -12px rgba(254, 100, 11, 0.7);
+  }
+  .btn-ghost:hover {
+    background: var(--color-mantle);
+    box-shadow: inset 0 0 0 1px var(--color-surface1);
+  }
+}
+
+/* ============================== keycaps ================================== */
+.kbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.85rem;
+  height: 1.85rem;
+  padding: 0 0.5rem;
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums; /* no width jitter across keys */
+  color: var(--color-subtext1);
+  background: var(--color-elevated);
+  border-radius: 0.5rem;
+  box-shadow: 0 1.5px 0 var(--color-surface1), 0 2px 5px -1px rgba(76, 79, 105, 0.16),
+    inset 0 0 0 1px var(--color-crust);
+}
+
+/* ============================== cards ==================================== */
+.card {
+  background: var(--color-elevated);
+  border-radius: 1.25rem;
+  /* shadows over borders — layered & transparent so they read on any surface */
+  box-shadow: 0 1px 2px rgba(76, 79, 105, 0.05),
+    0 10px 30px -22px rgba(76, 79, 105, 0.45),
+    inset 0 0 0 1px var(--color-hairline);
+  transition: transform 260ms var(--ease-out), box-shadow 260ms var(--ease-out);
+}
+@media (hover: hover) and (pointer: fine) {
+  .card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 2px 4px rgba(76, 79, 105, 0.07),
+      0 22px 48px -24px rgba(32, 159, 181, 0.5),
+      inset 0 0 0 1px var(--color-hairline);
+  }
+}
+/* concentric: card r=20px, pad=12px → badge r=8px */
+.card-badge {
+  border-radius: 0.5rem;
+}
+
+/* image / mockup outline — flips light↔dark via the hairline token */
+.outlined {
+  outline: 1px solid var(--color-hairline);
+  outline-offset: -1px;
+}
+
+/* translucent elevated surface (eyebrow, list rows) — flips with the theme */
+.surface-glass {
+  background: color-mix(in oklab, var(--color-elevated) 62%, transparent);
+  transition: background-color 180ms var(--ease-out);
+}
+@media (hover: hover) and (pointer: fine) {
+  .surface-glass-hover:hover {
+    background: color-mix(in oklab, var(--color-elevated) 92%, transparent);
+  }
+}
+
+/* ===================== entrance + scroll reveals (CSS-driven) =============
+   Driven by CSS transitions/@keyframes — NOT element.animate()/WAAPI — so they
+   PLAY EVEN WITH OS REDUCE MOTION ON (WebKit suppresses WAAPI but honours author
+   CSS; see CLAUDE.md). All transform+opacity → GPU-composited, cheap. JS only
+   toggles `.is-in`; the hero animates on load purely from the `.js` flag. */
+
+/* --- hero: staggered entrance on load --- */
+.js .hero-eyebrow,
+.js .hero-sub,
+.js .hero-loopline,
+.js .hero-platforms,
+.js .hero-cta,
+.js .hero-note {
+  opacity: 0;
+  animation: rise-in 0.8s var(--spring) both;
+}
+.js .hero-eyebrow { animation-delay: 0.05s; }
+.js .hero-sub { animation-delay: 0.38s; }
+.js .hero-loopline { animation-delay: 0.48s; }
+.js .hero-platforms { animation-delay: 0.56s; }
+.js .hero-cta { animation-delay: 0.62s; }
+.js .hero-note { animation-delay: 0.72s; }
+.js .hero-mockup {
+  opacity: 0;
+  animation: rise-in 0.95s var(--spring) 0.15s both,
+    float 7s ease-in-out 1.6s infinite;
+}
+.js .hero-title .te-char {
+  opacity: 0;
+  animation: char-in 0.62s var(--spring) both;
+  animation-delay: calc(0.12s + var(--i) * 26ms);
+}
+
+/* --- scroll reveals: hidden until IntersectionObserver adds .is-in --- */
+.js [data-reveal] {
+  opacity: 0;
+  transform: translateY(28px);
+}
+.js [data-reveal="scale"] { transform: scale(0.93); }
+.js [data-reveal="left"] { transform: translateX(-32px); }
+.js [data-reveal="right"] { transform: translateX(32px); }
+.js [data-reveal="blur"] { transform: translateY(22px); filter: blur(8px); }
+.js [data-reveal].is-in {
+  opacity: 1;
+  transform: none;
+  filter: none;
+  transition: opacity 0.7s var(--ease-out), transform 0.85s var(--spring),
+    filter 0.55s var(--ease-out);
+}
+
+/* --- staggered children --- */
+.js [data-reveal-stagger] > * {
+  opacity: 0;
+  transform: translateY(26px);
+}
+.js [data-reveal-stagger].is-in > * {
+  opacity: 1;
+  transform: none;
+  transition: opacity 0.6s var(--ease-out), transform 0.78s var(--spring);
+}
+.js [data-reveal-stagger].is-in > *:nth-child(1) { transition-delay: 0ms; }
+.js [data-reveal-stagger].is-in > *:nth-child(2) { transition-delay: 65ms; }
+.js [data-reveal-stagger].is-in > *:nth-child(3) { transition-delay: 130ms; }
+.js [data-reveal-stagger].is-in > *:nth-child(4) { transition-delay: 195ms; }
+.js [data-reveal-stagger].is-in > *:nth-child(5) { transition-delay: 260ms; }
+.js [data-reveal-stagger].is-in > *:nth-child(6) { transition-delay: 325ms; }
+.js [data-reveal-stagger].is-in > *:nth-child(7) { transition-delay: 390ms; }
+.js [data-reveal-stagger].is-in > *:nth-child(8) { transition-delay: 455ms; }
+
+@keyframes rise-in {
+  from { opacity: 0; transform: translateY(22px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes char-in {
+  from { opacity: 0; transform: translateY(0.55em); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
+}
+
+/* safety net: if the JS module never runs, reveal scroll-triggered content */
+.anim-failed [data-reveal],
+.anim-failed [data-reveal-stagger] > * {
+  opacity: 1 !important;
+  transform: none !important;
+  filter: none !important;
+}
+
+/* ===================== TextEffect — per char fade ======================== */
+.te {
+  display: inline-block;
+}
+.te-word {
+  display: inline-block;
+  white-space: nowrap; /* lines break between words, never mid-word */
+}
+.te-char {
+  display: inline-block;
+  will-change: transform, opacity; /* composited only — no blur, so no jitter */
+}
+.te-space {
+  white-space: pre-wrap; /* a real, breakable space between words */
+}
+
+/* ===================== TextLoop — rotating words ========================= */
+/* CSS-transition 3D flip (plays under Reduce Motion). Container is sized once in
+   JS to the widest word, so nothing animates width/height — transform+opacity. */
+.tl {
+  position: relative;
+  display: inline-block;
+  vertical-align: bottom;
+  overflow: hidden;
+  perspective: 800px;
+}
+.tl-word {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  white-space: nowrap;
+  opacity: 0;
+  transform: translateY(100%) rotateX(-55deg);
+  transform-origin: center bottom;
+  backface-visibility: hidden;
+  will-change: transform, opacity;
+  transition: transform 0.52s var(--spring), opacity 0.4s var(--ease-out);
+}
+.tl-word[data-active] {
+  opacity: 1;
+  transform: translateY(0) rotateX(0);
+}
+.tl-word[data-leaving] {
+  opacity: 0;
+  transform: translateY(-100%) rotateX(55deg);
+}
+
+/* ===================== TextScramble ====================================== */
+.scramble {
+  font-variant-numeric: tabular-nums;
+}
+
+/* ===================== SquigglyArrow draw-in ============================= */
+/* paths use pathLength="1"; CSS animates stroke-dashoffset 1→0 when .is-in lands */
+.js .squiggle-line,
+.js .squiggle-head {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+}
+.js [data-draw].is-in .squiggle-line {
+  animation: draw 0.8s var(--ease-out) forwards;
+}
+.js [data-draw].is-in .squiggle-head {
+  animation: draw 0.3s var(--ease-out) 0.6s forwards;
+}
+@keyframes draw {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+/* ===================== ProgressiveBlur ==================================== */
+.pblur {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.pblur-layer {
+  position: absolute;
+  inset: 0;
+}
+
+/* ===================== DitherHero ======================================== */
+.dither-wrap {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+}
+.dither-svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  /* "color + soft, contrast 80" — keep the colour, ease the contrast back */
+  filter: saturate(1.06) contrast(0.94);
+}
+/* dim the bright dither so it sits in a dark page instead of glaring */
+.dark .dither-svg {
+  filter: saturate(1.02) contrast(0.9) brightness(0.78);
+}
+
+/* ===================== reduced motion ==================================== */
+/* You asked for animation regardless of OS setting, so the brief CSS entrances
+   and reveals still play. We only drop the *continuous* movement that actually
+   causes motion discomfort: the infinite mockup float, the scroll parallax
+   (gated in JS), and the 3D flip on the word loop (kept as a soft fade). */
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  .js .hero-mockup {
+    animation: rise-in 0.8s var(--spring) 0.15s both !important;
+  }
+  .tl-word {
+    transform: translateY(55%) !important;
+    transition: opacity 0.35s var(--ease-out),
+      transform 0.35s var(--ease-out) !important;
+  }
+  .tl-word[data-active] {
+    transform: none !important;
+  }
+  .tl-word[data-leaving] {
+    transform: translateY(-55%) !important;
+  }
+  .btn:active {
+    transform: none;
+  }
+}
+
+/* ===================== chrome: nav, scroll progress ====================== */
+.header-inner {
+  transition: box-shadow 280ms var(--ease-out),
+    background-color 280ms var(--ease-out);
+}
+header.scrolled .header-inner {
+  box-shadow: 0 1px 0 color-mix(in oklab, var(--color-crust) 90%, transparent),
+    0 10px 30px -18px rgba(76, 79, 105, 0.55);
+}
+.scroll-progress {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  transform: scaleX(0);
+  transform-origin: 0 50%;
+  background: linear-gradient(90deg, var(--color-sapphire), var(--color-peach));
+  z-index: 60;
+}
+
+/* theme toggle — sun/moon cross-fade (scale + rotate, per the icon-anim spec) */
+.theme-toggle {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 11px;
+  color: var(--color-subtext1);
+  transition: background-color 160ms var(--ease-out), color 160ms var(--ease-out);
+}
+@media (hover: hover) and (pointer: fine) {
+  .theme-toggle:hover {
+    color: var(--color-text);
+    background: color-mix(in oklab, var(--color-elevated) 75%, transparent);
+  }
+}
+.theme-toggle:active {
+  transform: scale(0.92);
+}
+.theme-toggle svg {
+  position: absolute;
+  width: 18px;
+  height: 18px;
+  transition: opacity 220ms var(--ease-out), transform 280ms var(--ease-out);
+  will-change: transform, opacity;
+}
+.theme-toggle .i-sun {
+  opacity: 0;
+  transform: scale(0.5) rotate(-40deg);
+}
+.theme-toggle .i-moon {
+  opacity: 1;
+  transform: scale(1) rotate(0);
+}
+.dark .theme-toggle .i-sun {
+  opacity: 1;
+  transform: scale(1) rotate(0);
+}
+.dark .theme-toggle .i-moon {
+  opacity: 0;
+  transform: scale(0.5) rotate(40deg);
+}
+
+/* ===================== cross-platform chips ============================== */
+.platforms {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.85rem;
+  list-style: none;
+  padding: 0;
+  /* no `margin: 0` here — it would beat the mt-* utility (unlayered > layered)
+     and clamp the chips against the buttons; preflight already zeroes <ul>. */
+}
+.platform-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  padding: 0.5rem 0.95rem;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--color-subtext1);
+  background: color-mix(in oklab, var(--color-elevated) 70%, transparent);
+  box-shadow: inset 0 0 0 1px var(--color-crust);
+  transition: transform 160ms var(--ease-out), box-shadow 160ms var(--ease-out);
+}
+.platform-chip svg {
+  width: 14px;
+  height: 14px;
+  flex: none;
+}
+@media (hover: hover) and (pointer: fine) {
+  .platform-chip:hover {
+    transform: translateY(-1px);
+    box-shadow: inset 0 0 0 1px var(--color-surface1),
+      0 4px 12px -6px rgba(76, 79, 105, 0.4);
+  }
+}
+/* the CTA gradient stays bright in both themes → fixed dark ink + white chips */
+.platforms-gradient .platform-chip {
+  color: var(--color-ink-bright);
+  background: rgba(255, 255, 255, 0.62);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.7);
+}

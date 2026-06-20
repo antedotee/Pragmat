@@ -1,0 +1,26 @@
+---
+// TextLoop — rotating words with the 3D rotateX flip from motion-primitives'
+// <TextLoop>. Words are stacked; the active one is in flow (so the box auto-
+// sizes), the rest are absolute. The shared script in Base.astro cycles them.
+interface Props {
+  words: string[];
+  interval?: number;
+  class?: string;
+}
+const { words, interval = 2400, class: className = "" } = Astro.props;
+---
+
+<span
+  class={`tl ${className}`}
+  data-textloop
+  data-interval={interval}
+  aria-label={words.join(", ")}
+>
+  {
+    words.map((w, idx) => (
+      <span class="tl-word" data-active={idx === 0 ? "" : undefined} aria-hidden="true">
+        {w}
+      </span>
+    ))
+  }
+</span>

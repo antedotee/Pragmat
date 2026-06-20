@@ -1,0 +1,406 @@
+---
+import Base from "../layouts/Base.astro";
+import Icon from "../components/Icon.astro";
+import DitherHero from "../components/DitherHero.astro";
+import AppMockup from "../components/AppMockup.astro";
+import SquigglyArrow from "../components/SquigglyArrow.astro";
+import TextEffect from "../components/TextEffect.astro";
+import TextLoop from "../components/TextLoop.astro";
+import TextScramble from "../components/TextScramble.astro";
+import ProgressiveBlur from "../components/ProgressiveBlur.astro";
+import PlatformBadges from "../components/PlatformBadges.astro";
+
+const REPO = "https://github.com/antedotee/Pragmat";
+const RELEASES = `${REPO}/releases/latest`;
+
+const concepts = [
+  {
+    title: "Today & Future",
+    keys: ["⌘1", "⌘2"],
+    body: "Two buckets for everything open. What you're doing now, and what's waiting. Nothing in between to manage.",
+    accent: "sapphire",
+    icon: "clock",
+  },
+  {
+    title: "Burst",
+    keys: ["⌘B"],
+    body: "A finite, focused project you actually complete. A launch, a trip, a fix. It ends — and that feels good.",
+    accent: "peach",
+    icon: "square",
+  },
+  {
+    title: "Arc",
+    keys: ["⌘A"],
+    body: "An ongoing area of life that never finishes — health, reading, work. You tend it; you don't close it.",
+    accent: "teal",
+    icon: "circle",
+  },
+  {
+    title: "Logbook & Bin",
+    keys: [],
+    body: "Done to-dos slide into the Logbook; trashed ones rest in the Bin. Your lists stay about what's next.",
+    accent: "blue",
+    icon: "archive",
+  },
+];
+
+const shortcuts = [
+  { keys: ["⌘N"], action: "New to-do in the current view — even mid-edit" },
+  { keys: ["⌘B"], action: "Start a new Burst" },
+  { keys: ["⌘A"], action: "Start a new Arc" },
+  { keys: ["⌘1"], action: "Jump to Today" },
+  { keys: ["⌘2"], action: "Jump to Future" },
+  { keys: ["Enter"], action: "Save and begin the next to-do" },
+  { keys: ["Esc"], action: "Stop editing" },
+];
+
+const features = [
+  {
+    title: "Native & fast",
+    body: "A Tauri shell over a tiny Rust core. It opens instantly and stays out of the way — no Electron heft.",
+  },
+  {
+    title: "Local-first",
+    body: "Everything lives in a local SQLite file on your machine. No account, no cloud, no sync you didn't ask for.",
+  },
+  {
+    title: "Keyboard-first",
+    body: "Create, complete, and move between views without lifting your hands. The mouse is optional.",
+  },
+  {
+    title: "Dates that respect you",
+    body: "Schedule to-dos for a day, see them gather in Future, and set per-task deadlines when something truly has one.",
+  },
+  {
+    title: "Quietly designed",
+    body: "A translucent vibrancy sidebar, a sliding selection pill, staggered list animations. Calm, not flashy.",
+  },
+  {
+    title: "Open source",
+    body: "Free, auditable, and yours to build on. Read every line, file an issue, send a patch.",
+  },
+];
+---
+
+<Base>
+  <!-- ============================ header ============================ -->
+  <header class="sticky top-0 z-50">
+    <div
+      class="header-inner mx-auto flex max-w-6xl items-center justify-between px-6 py-3.5
+             backdrop-blur-md"
+      style="background:color-mix(in oklab,var(--color-base) 72%,transparent);box-shadow:0 1px 0 color-mix(in oklab,var(--color-crust) 80%,transparent)"
+    >
+      <a href="#top" class="flex items-center gap-2.5 font-display text-xl font-semibold text-text">
+        <Icon size={28} />
+        Pragmat
+      </a>
+      <nav aria-label="Primary" class="hidden items-center gap-7 text-sm text-subtext1 sm:flex">
+        <a class="nav-link" href="#concepts">Concepts</a>
+        <a class="nav-link" href="#keyboard">Keyboard</a>
+        <a class="nav-link" href="#why">Why Pragmat</a>
+      </nav>
+      <div class="flex items-center gap-1.5">
+        <button
+          type="button"
+          data-theme-toggle
+          aria-label="Toggle dark mode"
+          aria-pressed="false"
+          class="theme-toggle"
+        >
+          <svg class="i-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+            <circle cx="12" cy="12" r="4"></circle>
+            <path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"></path>
+          </svg>
+          <svg class="i-moon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+            <path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z"></path>
+          </svg>
+        </button>
+        <a
+          href={REPO}
+          aria-label="Pragmat on GitHub"
+          class="ml-1.5 hidden text-subtext1 transition-colors hover:text-text sm:inline-flex"
+          target="_blank"
+          rel="noopener"
+        >
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+            <path
+              d="M12 .5C5.73.5.5 5.73.5 12c0 5.08 3.29 9.39 7.86 10.91.58.11.79-.25.79-.56v-2c-3.2.7-3.88-1.54-3.88-1.54-.53-1.34-1.3-1.7-1.3-1.7-1.06-.72.08-.71.08-.71 1.17.08 1.78 1.2 1.78 1.2 1.04 1.79 2.74 1.27 3.41.97.11-.76.41-1.27.74-1.56-2.55-.29-5.23-1.28-5.23-5.69 0-1.26.45-2.29 1.19-3.1-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.18 1.18a11 11 0 0 1 5.79 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.81 1.19 1.84 1.19 3.1 0 4.42-2.69 5.39-5.25 5.68.42.36.8 1.08.8 2.18v3.23c0 .31.21.68.8.56A11.51 11.51 0 0 0 23.5 12C23.5 5.73 18.27.5 12 .5Z"
+            ></path>
+          </svg>
+        </a>
+        <a href={RELEASES} class="btn btn-primary btn-sm" target="_blank" rel="noopener">
+          Download
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <!-- ============================= hero ============================= -->
+  <section id="top" class="relative isolate overflow-hidden">
+    <DitherHero />
+    <!-- left scrim keeps the headline at AA contrast over the dither -->
+    <div
+      class="absolute inset-0 -z-0"
+      aria-hidden="true"
+      style="background:linear-gradient(100deg,color-mix(in oklab,var(--color-base) 88%,transparent) 0%,color-mix(in oklab,var(--color-base) 55%,transparent) 42%,transparent 72%)"
+    >
+    </div>
+
+    <div class="relative mx-auto grid max-w-6xl items-center gap-12 px-6 pb-28 pt-20 lg:grid-cols-[1.05fr_0.95fr] lg:pb-36 lg:pt-28">
+      <div>
+        <span
+          class="hero-eyebrow surface-glass inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-medium text-sapphire backdrop-blur"
+          style="box-shadow:inset 0 0 0 1px color-mix(in oklab,var(--color-sapphire) 25%,transparent)"
+        >
+          <span class="h-1.5 w-1.5 rounded-full bg-peach"></span>
+          Cross-platform · Tauri · Open source
+        </span>
+
+        <TextEffect
+          as="h1"
+          per="char"
+          text="Build momentum, not a backlog."
+          class="hero-title mt-5 font-display text-5xl font-semibold leading-[1.02] tracking-tight text-text sm:text-6xl lg:text-7xl"
+        />
+
+        <div class="mt-6 max-w-xl">
+          <p class="hero-sub text-lg leading-relaxed text-subtext1">
+            Pragmat is a fast, keyboard-first task app for your desktop. Two
+            buckets — Today and Future — plus <span class="font-medium text-text">Bursts</span>
+            you finish and <span class="font-medium text-text">Arcs</span> you tend.
+            Nothing else in the way.
+          </p>
+
+          <p class="hero-loopline mt-3 inline-flex flex-wrap items-baseline gap-1.5 text-lg text-subtext1">
+            Made for
+            <TextLoop
+              words={["founders", "developers", "designers", "makers", "indie hackers"]}
+              class="font-display text-2xl font-semibold text-sapphire"
+            />
+          </p>
+
+          <PlatformBadges class="hero-platforms mt-6" />
+
+          <div class="hero-cta mt-7 flex flex-wrap items-center gap-3.5">
+            <a href={RELEASES} class="btn btn-primary" target="_blank" rel="noopener">
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                <path d="M12 3a1 1 0 0 1 1 1v9.59l2.3-2.3a1 1 0 0 1 1.4 1.42l-4 4a1 1 0 0 1-1.4 0l-4-4a1 1 0 0 1 1.4-1.42l2.3 2.3V4a1 1 0 0 1 1-1Zm-7 14a1 1 0 0 1 1 1v1h12v-1a1 1 0 1 1 2 0v2a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1v-2a1 1 0 0 1 1-1Z"></path>
+              </svg>
+              Download
+            </a>
+            <a href={REPO} class="btn btn-ghost" target="_blank" rel="noopener">
+              View source
+            </a>
+          </div>
+
+          <div class="hero-note mt-4 flex items-center gap-2 text-sm text-overlay0">
+            <span>Free &amp; open-source.</span>
+            <span class="text-sapphire"><SquigglyArrow variant="bouncy" width={64} height={26} /></span>
+            <span>No sign-up.</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="hero-mockup relative">
+        <div class="relative z-10 lg:rotate-[1.2deg] lg:transition-transform lg:duration-500 lg:ease-out lg:hover:rotate-0">
+          <AppMockup />
+        </div>
+      </div>
+    </div>
+
+    <!-- progressive blur eases the dither into the page -->
+    <ProgressiveBlur direction="bottom" layers={6} blur={9} class="h-40 top-auto" />
+    <div
+      class="pointer-events-none absolute inset-x-0 bottom-0 h-40"
+      aria-hidden="true"
+      style="background:linear-gradient(to bottom,transparent,var(--color-base))"
+    >
+    </div>
+  </section>
+
+  <!-- =========================== concepts =========================== -->
+  <section id="concepts" class="mx-auto max-w-6xl scroll-mt-20 px-6 py-20 lg:py-28">
+    <div class="max-w-2xl" data-reveal>
+      <TextScramble
+        text="THE MODEL"
+        class="text-xs font-semibold uppercase tracking-[0.18em] text-sapphire"
+      />
+      <h2 class="mt-3 font-display text-4xl font-semibold tracking-tight text-text sm:text-5xl">
+        Two buckets. Two rhythms.
+      </h2>
+      <p class="mt-4 text-lg leading-relaxed text-subtext1">
+        Most apps drown you in lists, labels, and projects. Pragmat keeps four
+        ideas — and trusts you with the rest.
+      </p>
+    </div>
+
+    <div data-reveal-stagger class="mt-12 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+      {
+        concepts.map((c) => (
+          <article class="card flex flex-col gap-4 p-6">
+            <span
+              class="card-badge inline-flex h-11 w-11 items-center justify-center"
+              style={`color:var(--color-${c.accent});background:color-mix(in oklab,var(--color-${c.accent}) 14%,var(--color-elevated))`}
+            >
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                {c.icon === "clock" && (<Fragment><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></Fragment>)}
+                {c.icon === "square" && (<rect x="4" y="4" width="16" height="16" rx="3" />)}
+                {c.icon === "circle" && (<circle cx="12" cy="12" r="8.5" />)}
+                {c.icon === "archive" && (<Fragment><rect x="3" y="4" width="18" height="5" rx="1.5" /><path d="M5 9v9a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V9M10 13h4" /></Fragment>)}
+              </svg>
+            </span>
+            <div class="flex items-center gap-2">
+              <h3 class="font-display text-2xl font-semibold text-text">{c.title}</h3>
+              {c.keys.map((k) => (
+                <kbd class="kbd">{k}</kbd>
+              ))}
+            </div>
+            <p class="text-[15px] leading-relaxed text-subtext1">{c.body}</p>
+          </article>
+        ))
+      }
+    </div>
+  </section>
+
+  <!-- =========================== keyboard =========================== -->
+  <section
+    id="keyboard"
+    class="scroll-mt-20 py-20 lg:py-28"
+    style="background:color-mix(in oklab,var(--color-momentum-1) 14%,var(--color-base))"
+  >
+    <div class="mx-auto grid max-w-6xl items-start gap-14 px-6 lg:grid-cols-[0.9fr_1.1fr]">
+      <div class="lg:sticky lg:top-24">
+        <TextScramble
+          text="SHORTCUTS"
+          class="text-xs font-semibold uppercase tracking-[0.18em] text-peach"
+        />
+        <h2 class="mt-3 font-display text-4xl font-semibold tracking-tight text-text sm:text-5xl">
+          Keyboard-first,
+          <br class="hidden sm:block" /> mouse-optional.
+        </h2>
+        <p class="mt-4 max-w-md text-lg leading-relaxed text-subtext1">
+          Every core action has a key. Capture a thought, finish it, and move on
+          without breaking flow.
+        </p>
+        <div class="mt-6 text-sapphire">
+          <SquigglyArrow variant="wavy" direction="down" width={90} height={64} />
+        </div>
+      </div>
+
+      <ul data-reveal-stagger class="flex flex-col gap-1.5">
+        {
+          shortcuts.map((s) => (
+            <li class="surface-glass surface-glass-hover flex items-center gap-4 rounded-xl px-5 py-3.5">
+              <span class="flex flex-none gap-1.5">
+                {s.keys.map((k) => (
+                  <kbd class="kbd">{k}</kbd>
+                ))}
+              </span>
+              <span class="text-[15px] text-subtext1">{s.action}</span>
+            </li>
+          ))
+        }
+      </ul>
+    </div>
+  </section>
+
+  <!-- ============================== why ============================= -->
+  <section id="why" class="mx-auto max-w-6xl scroll-mt-20 px-6 py-20 lg:py-28">
+    <div class="max-w-2xl" data-reveal>
+      <TextScramble
+        text="WHY PRAGMAT"
+        class="text-xs font-semibold uppercase tracking-[0.18em] text-teal"
+      />
+      <h2 class="mt-3 font-display text-4xl font-semibold tracking-tight text-text sm:text-5xl">
+        Small on purpose.
+      </h2>
+      <p class="mt-4 text-lg leading-relaxed text-subtext1">
+        Pragmat does a few things and gets out of your way. That restraint is the
+        feature.
+      </p>
+    </div>
+
+    <div data-reveal-stagger class="mt-12 grid gap-x-10 gap-y-9 sm:grid-cols-2 lg:grid-cols-3">
+      {
+        features.map((f) => (
+          <div class="flex flex-col gap-2">
+            <h3 class="flex items-center gap-2.5 font-display text-2xl font-semibold text-text">
+              <span class="h-2.5 w-2.5 rounded-full bg-peach"></span>
+              {f.title}
+            </h3>
+            <p class="text-[15px] leading-relaxed text-subtext1">{f.body}</p>
+          </div>
+        ))
+      }
+    </div>
+  </section>
+
+  <!-- ============================ download ========================== -->
+  <section class="mx-auto max-w-6xl px-6 pb-24">
+    <div
+      class="relative overflow-hidden rounded-[2rem] px-8 py-16 text-center sm:px-16 sm:py-20"
+      style="background:linear-gradient(135deg,var(--color-momentum-1),var(--color-momentum-2))"
+    >
+      <div
+        class="pointer-events-none absolute -right-16 -top-20 h-64 w-64 rounded-full opacity-80 blur-2xl"
+        style="background:radial-gradient(circle,var(--color-peach),transparent 70%)"
+        aria-hidden="true"
+      >
+      </div>
+      <div class="relative mx-auto max-w-2xl" data-reveal>
+        <Icon size={56} class="mx-auto drop-shadow-md" />
+        <h2 class="mt-6 font-display text-4xl font-bold tracking-tight sm:text-5xl" style="color:var(--color-ink-bright)">
+          Bring some momentum to your desktop.
+        </h2>
+        <p class="mx-auto mt-4 max-w-md text-[17px] leading-relaxed" style="color:color-mix(in oklab,var(--color-ink-bright) 82%,transparent)">
+          Download Pragmat, open it, and add your first to-do in seconds.
+        </p>
+        <div class="mt-9 flex flex-col items-center justify-center gap-3 sm:flex-row">
+          <a href={RELEASES} class="btn btn-primary btn-lg" target="_blank" rel="noopener">
+            Download
+          </a>
+          <a
+            href={REPO}
+            class="btn btn-lg"
+            style="background:rgba(255,255,255,0.85);color:var(--color-ink-bright)"
+            target="_blank"
+            rel="noopener"
+          >
+            Star on GitHub
+          </a>
+        </div>
+        <PlatformBadges tone="gradient" class="mt-9 justify-center" />
+        <p class="mt-4 text-sm" style="color:color-mix(in oklab,var(--color-ink-bright) 70%,transparent)">
+          One download, every desktop — macOS (Apple Silicon &amp; Intel), Windows, and Linux. No sign-up.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================= footer ========================== -->
+  <footer class="border-t border-crust">
+    <div class="mx-auto flex max-w-6xl flex-col items-center justify-between gap-5 px-6 py-10 sm:flex-row">
+      <a href="#top" class="flex items-center gap-2.5 font-display text-lg font-semibold text-text">
+        <Icon size={24} />
+        Pragmat
+      </a>
+      <nav aria-label="Footer" class="flex items-center gap-6 text-sm text-subtext1">
+        <a class="nav-link" href="#concepts">Concepts</a>
+        <a class="nav-link" href="#keyboard">Keyboard</a>
+        <a class="nav-link" href={RELEASES} target="_blank" rel="noopener">Releases</a>
+        <a class="nav-link" href={REPO} target="_blank" rel="noopener">GitHub</a>
+      </nav>
+      <p class="text-sm text-overlay0">Built with Tauri + vanilla TypeScript.</p>
+    </div>
+  </footer>
+
+  <style>
+    .nav-link {
+      position: relative;
+      transition: color 160ms var(--ease-out);
+    }
+    .nav-link:hover {
+      color: var(--color-text);
+    }
+  </style>
+</Base>

@@ -1,0 +1,56 @@
+---
+// Hand-drawn squiggly arrow (after cult-ui's squiggle-arrow). Variants change
+// the wiggle; direction rotates the whole thing; it draws itself in on scroll
+// (paths use pathLength="1" so one dash rule fits every size).
+type Variant = "wavy" | "bouncy" | "smooth";
+type Direction = "right" | "left" | "up" | "down";
+interface Props {
+  variant?: Variant;
+  direction?: Direction;
+  width?: number;
+  height?: number;
+  strokeWidth?: number;
+  draw?: boolean;
+  class?: string;
+}
+const {
+  variant = "wavy",
+  direction = "right",
+  width = 132,
+  height = 54,
+  strokeWidth = 2.5,
+  draw = true,
+  class: className = "",
+} = Astro.props;
+
+// internal coords are fixed at viewBox 0 0 132 54; props just scale the render.
+const lines: Record<Variant, string> = {
+  wavy: "M6 27 q 16 -18 31 0 t 31 0 t 31 0",
+  bouncy: "M6 30 q 22 -26 44 0 t 44 0",
+  smooth: "M6 34 C 34 8, 78 8, 116 24",
+};
+const head = "M104 13 L120 25 L103 35";
+const rotate = { right: 0, down: 90, left: 180, up: 270 }[direction];
+---
+
+<span
+  class={`squiggle ${className}`}
+  data-draw={draw ? "" : undefined}
+  style={`display:inline-block;line-height:0;transform:rotate(${rotate}deg)`}
+>
+  <svg
+    width={width}
+    height={height}
+    viewBox="0 0 132 54"
+    fill="none"
+    stroke="currentColor"
+    stroke-width={strokeWidth}
+    stroke-linecap="round"
+    stroke-linejoin="round"
+    aria-hidden="true"
+    xmlns="http://www.w3.org/2000/svg"
+  >
+    <path class="squiggle-line" d={lines[variant]} pathLength="1"></path>
+    <path class="squiggle-head" d={head} pathLength="1"></path>
+  </svg>
+</span>

@@ -1,0 +1,39 @@
+---
+// ProgressiveBlur — stacked backdrop-filter layers, each masked to a band, so
+// the blur ramps in one direction (the technique from the motion-primitives /
+// cult-ui progressive-blur docs). Computed at build time — zero JS.
+type Direction = "top" | "bottom" | "left" | "right";
+interface Props {
+  direction?: Direction;
+  layers?: number;
+  blur?: number; // max blur in px
+  class?: string;
+}
+const { direction = "bottom", layers = 6, blur = 10, class: className = "" } =
+  Astro.props;
+const grad = { top: "to top", bottom: "to bottom", left: "to left", right: "to right" }[
+  direction
+];
+
+const items = Array.from({ length: layers }, (_, i) => {
+  const f = (i + 1) / layers;
+  const b = +(blur * f * f).toFixed(2); // ease the ramp so early layers stay light
+  const a = ((i / layers) * 100).toFixed(1);
+  const m = (((i + 0.5) / layers) * 100).toFixed(1);
+  const c = (((i + 1) / layers) * 100).toFixed(1);
+  const d = (((i + 2) / layers) * 100).toFixed(1);
+  const mask = `linear-gradient(${grad}, rgba(0,0,0,0) ${a}%, rgba(0,0,0,1) ${m}%, rgba(0,0,0,1) ${c}%, rgba(0,0,0,0) ${d}%)`;
+  return { b, mask };
+});
+---
+
+<div class={`pblur ${className}`} aria-hidden="true">
+  {
+    items.map((it) => (
+      <div
+        class="pblur-layer"
+        style={`backdrop-filter:blur(${it.b}px);-webkit-backdrop-filter:blur(${it.b}px);-webkit-mask-image:${it.mask};mask-image:${it.mask};`}
+      />
+    ))
+  }
+</div>

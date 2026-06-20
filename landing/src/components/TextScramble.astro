@@ -1,0 +1,15 @@
+---
+// TextScramble — the decode-on-reveal effect from motion-primitives'
+// <TextScramble>. Scrambles once when it scrolls into view (driven by the
+// shared script in Base.astro). Renders the final text by default, so it's
+// fully readable with JS off / reduced motion.
+interface Props {
+  text: string;
+  as?: keyof HTMLElementTagNameMap;
+  class?: string;
+}
+const { text, as = "span", class: className = "" } = Astro.props;
+const Tag = as as any;
+---
+
+<Tag class={`scramble ${className}`} data-scramble data-text={text}>{text}</Tag>
