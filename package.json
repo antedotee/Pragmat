@@ -1,0 +1,23 @@
+{
+  "name": "pragmat",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "tauri": "tauri"
+  },
+  "dependencies": {
+    "@fontsource/cormorant-garamond": "^5.2.11",
+    "@tauri-apps/api": "^2",
+    "@tauri-apps/plugin-sql": "^2",
+    "motion": "^12.40.0"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2",
+    "typescript": "~5.6.2",
+    "vite": "^6.0.3"
+  }
+}

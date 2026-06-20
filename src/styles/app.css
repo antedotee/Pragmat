@@ -1,0 +1,1500 @@
+* {
+  box-sizing: border-box;
+}
+
+/* The vendored oat CSS adds a box-shadow ring on :focus / :focus-visible. This
+   app shows focus via the caret/selection, so drop the ring everywhere. */
+:focus,
+:focus-visible {
+  outline: none;
+  box-shadow: none;
+}
+
+html,
+body,
+#app {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  overflow: hidden;
+  user-select: none;
+  cursor: default;
+}
+
+#app {
+  position: relative; /* anchors the absolute .sidebar-resize handle */
+  display: grid;
+  /* --sb-w drives the sidebar track; JS animates it 0↔open to collapse/expand. */
+  --sb-w: clamp(200px, 20%, 248px);
+  grid-template-columns: var(--sb-w) 1fr;
+  background: var(--bg);
+  overflow: hidden; /* clip the sidebar/board as they slide off-screen on toggle */
+}
+
+/* ============================ sidebar ============================ */
+
+/* #sidebar is the grid track + clip box; .sidebar-inner holds the content at a
+   fixed width so it clips cleanly (no squish) as the track collapses to 0. */
+#sidebar {
+  position: relative;
+  background: var(--bg-sidebar);
+  border-right: 1px solid var(--line);
+  overflow: hidden;
+  -webkit-app-region: drag;
+}
+
+.sidebar-inner {
+  position: relative;
+  width: 248px; /* fallback; JS pins this to the exact open width in px */
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 44px 10px 12px;
+}
+
+.nav-indicator {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 32px;
+  border-radius: 6px;
+  background: var(--sel);
+  opacity: 0;
+  pointer-events: none;
+  z-index: 0;
+  transition:
+    transform 260ms var(--ease-in-out),
+    height 260ms var(--ease-in-out),
+    opacity 160ms var(--ease-out);
+}
+
+.nav-group {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+/* space between the stacked top groups: Raws / Today+Future / Logs+Bin */
+.nav-group + .nav-group {
+  margin-top: 14px;
+}
+
+.nav-bottom {
+  margin-top: auto;
+  padding-top: 8px;
+}
+
+.nav-item {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  height: 32px;
+  padding: 0 9px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-dim);
+  font-family: inherit;
+  font-size: 13.5px;
+  font-weight: 450;
+  text-align: left;
+  -webkit-app-region: no-drag;
+  transition: color 140ms var(--ease-out), background 140ms var(--ease-out);
+}
+
+.nav-item:hover:not(.active) {
+  background: var(--hover);
+  color: var(--text);
+}
+
+.nav-item.active {
+  color: var(--text);
+}
+
+.nav-item:active {
+  transform: scale(0.985);
+}
+
+.nav-icon {
+  display: grid;
+  place-items: center;
+  width: 17px;
+  height: 17px;
+  flex: none;
+  color: var(--text-faint);
+  transition: color 140ms var(--ease-out);
+}
+
+.nav-item:hover .nav-icon,
+.nav-item.active .nav-icon {
+  color: var(--accent);
+}
+
+.nav-label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* low-key tally beside Raws / Today — present, not attention-grabbing */
+.nav-count {
+  flex: none;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-faint);
+  opacity: 0.6;
+}
+
+.nav-count:empty {
+  display: none; /* no badge (and no flex gap) when the count is 0 */
+}
+
+/* section headers */
+.nav-section {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  margin-top: 16px;
+}
+
+.section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 22px;
+  padding: 0 9px;
+  -webkit-app-region: no-drag;
+}
+
+.section-head h2 {
+  margin: 0;
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+
+.section-add {
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-faint);
+  opacity: 0;
+  -webkit-app-region: no-drag;
+  transition: opacity 140ms var(--ease-out), background 140ms var(--ease-out), color 140ms var(--ease-out);
+}
+
+.nav-section:hover .section-add {
+  opacity: 1;
+}
+
+.section-add:hover {
+  background: var(--hover);
+  color: var(--accent);
+}
+
+.section-add:active {
+  transform: scale(0.92);
+}
+
+/* lane (burst / arc) rows carry an inline-editable name */
+.lane {
+  cursor: default;
+}
+
+.lane-name {
+  margin: 0; /* reset oat's input margin-block-start (4px) */
+  border: none;
+  background: transparent;
+  font-family: inherit;
+  font-size: 13.5px;
+  font-weight: 450;
+  color: inherit;
+  padding: 0;
+  outline: none;
+  -webkit-app-region: no-drag;
+}
+
+.lane-name::placeholder {
+  color: var(--text-faint);
+}
+
+/* ============================ board ============================ */
+
+#board {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  background: var(--bg);
+  overflow: hidden;
+}
+
+.board-header {
+  display: flex;
+  align-items: baseline;
+  gap: 11px;
+  padding: 40px 36px 10px;
+  -webkit-app-region: drag;
+}
+
+/* Sidebar resize handle — a thin grab strip sitting on the sidebar/board seam.
+   Drag to resize the sidebar; a plain click toggles it open/closed. */
+.sidebar-resize {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: var(--sb-w);
+  width: 10px;
+  margin-left: -2px;
+  z-index: 50;
+  cursor: col-resize; /* the resize cursor is the affordance — no colored line */
+  -webkit-app-region: no-drag;
+}
+
+.board-header h1 {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--text);
+  text-wrap: balance;
+}
+
+.board-count {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-faint);
+  font-variant-numeric: tabular-nums;
+}
+
+/* notes under a burst/arc title — hugs its content width (JS-sized), wrapping +
+   growing taller once it fills the row. align-self stops the flex column from
+   stretching it full width; gutters are margins so the box ends with the text. */
+.board-notes {
+  flex: none;
+  align-self: stretch; /* full width (minus margins); height auto-grows from 1 line */
+  margin: 0 36px 12px;
+  padding: 0;
+  min-height: 0; /* override oat's textarea min-height:5rem so it can size to 1 line */
+  border: none;
+  background: transparent;
+  resize: none;
+  overflow: hidden;
+  overflow-wrap: anywhere; /* a long unbreakable token wraps instead of clipping */
+  font-family: var(--font-sans);
+  font-size: 14px;
+  line-height: 1.4;
+  color: var(--text-dim);
+  outline: none;
+  -webkit-app-region: no-drag;
+}
+
+.board-notes::placeholder {
+  color: var(--text-faint);
+}
+
+#task-list {
+  flex: 1;
+  margin: 0;
+  padding: 4px 24px 48px;
+  list-style: none;
+  overflow-y: auto;
+}
+
+/* ============================ task row ============================ */
+
+.task {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 7px 12px;
+  border-radius: var(--radius-row);
+  overflow: hidden;
+  -webkit-app-region: no-drag;
+  transition:
+    opacity 240ms var(--ease-out),
+    transform 240ms var(--ease-out),
+    height 240ms var(--ease-out),
+    background-color 200ms var(--ease-out),
+    box-shadow 200ms var(--ease-out);
+}
+
+.task:hover {
+  background: var(--hover);
+}
+
+.task.leaving {
+  opacity: 0;
+  transform: translateX(7px);
+  padding-top: 0;
+  padding-bottom: 0;
+  pointer-events: none;
+  transition:
+    height 200ms var(--ease-out),
+    opacity 150ms var(--ease-out),
+    transform 200ms var(--ease-out),
+    padding 200ms var(--ease-out);
+}
+
+.checkbox {
+  position: relative;
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  border: 1.5px solid var(--check-border);
+  border-radius: 5px;
+  background: transparent;
+  -webkit-app-region: no-drag;
+  transition:
+    border-color 140ms var(--ease-out),
+    background 160ms var(--ease-out),
+    transform 130ms var(--ease-out);
+}
+
+/* extend hit area without growing the visual box (16px + 2×12 = 40px target) */
+.checkbox::before {
+  content: "";
+  position: absolute;
+  inset: -12px;
+}
+
+.checkbox:hover {
+  border-color: var(--accent);
+}
+
+.checkbox:active {
+  transform: scale(0.88);
+}
+
+.checkbox .icon {
+  width: 11px;
+  height: 11px;
+  color: var(--on-accent);
+  opacity: 0;
+  transform: scale(0.3);
+  filter: blur(3px);
+  transition:
+    opacity 150ms var(--ease-out),
+    transform 220ms var(--ease-out),
+    filter 150ms var(--ease-out);
+}
+
+.task.done .checkbox,
+.checkbox.checked {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.task.done .checkbox .icon,
+.checkbox.checked .icon {
+  opacity: 1;
+  transform: scale(1);
+  filter: blur(0);
+}
+
+.task-title {
+  flex: 1;
+  min-width: 0;
+  margin: 0; /* reset oat's margin-block-start (4px) that misaligned text vs checkbox */
+  border: none;
+  background: transparent;
+  font-family: inherit;
+  font-size: 14.5px;
+  font-weight: 450;
+  line-height: 1.35;
+  color: var(--text);
+  padding: 0;
+  outline: none;
+  -webkit-user-select: none; /* dragging a row moves the block, never selects its text */
+  user-select: none;
+}
+
+.task-title::placeholder {
+  color: var(--text-faint);
+}
+
+.task.done .task-title {
+  color: var(--text-faint);
+  opacity: 0.6;
+}
+
+/* Today's burst/arc section heading — a static divider, not a row (no .task). */
+.task-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 16px 12px 4px;
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-app-region: no-drag;
+}
+
+.task-group:first-child {
+  padding-top: 4px;
+}
+
+.task-group-ic {
+  display: flex;
+  width: 13px;
+  height: 13px;
+}
+
+.task-group-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* single-click selection — "in focus" without expanding */
+.task.selected:not(.expanded) {
+  background: var(--hover);
+  box-shadow: inset 0 0 0 1px var(--line);
+}
+
+/* lifted while being dragged to reorder */
+.task.dragging,
+.nav-item.lane.dragging {
+  position: relative;
+  z-index: 5;
+  cursor: grabbing;
+  background: var(--surface);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.16), 0 0 0 1px var(--line);
+  transition: none; /* follow the pointer 1:1, no 240ms transform lag */
+  pointer-events: none; /* let elementFromPoint see the sidebar slot under the cursor */
+  overflow: visible; /* don't clip the drag count badge at the corner */
+}
+
+/* sidebar slot highlighted while a to-do is dragged over it (drop to re-file) */
+.nav-item.drop-target {
+  background: var(--hover);
+  box-shadow: inset 0 0 0 1.5px var(--accent);
+}
+
+/* count chip on the carried row when dragging a multi-selection */
+.drag-badge {
+  position: absolute;
+  top: -7px;
+  left: -7px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 9px;
+  background: var(--accent);
+  color: var(--on-accent);
+  font-size: 11px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums; /* multi-digit counts don't reflow the badge */
+  display: grid;
+  place-items: center;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25);
+}
+
+/* ============================ empty state ============================ */
+
+.empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 64px 0;
+  color: var(--text-faint);
+  font-size: 13.5px;
+  animation: emptyIn 280ms var(--ease-out);
+}
+
+@keyframes emptyIn {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ============================ logged section (burst/arc) ============================ */
+
+/* Sits after the active rows with a little breathing room. The toggle stays put;
+   .logged-items grows/shrinks beneath it (height springs via JS — see anim.ts). */
+.logged-section {
+  list-style: none;
+  margin: 18px 0 0;
+  padding: 0;
+}
+
+.logged-toggle {
+  margin: 0 12px;
+  padding: 5px 0;
+  background: none;
+  border: none;
+  font: inherit;
+  font-size: 12.5px;
+  color: var(--text-faint);
+  cursor: pointer;
+  -webkit-app-region: no-drag;
+  transition: color 140ms var(--ease-out);
+}
+
+.logged-toggle:hover {
+  color: var(--text-dim);
+}
+
+.logged-items {
+  /* height is driven inline by springHeight; default open state flows naturally */
+  margin-top: 2px;
+}
+
+/* ============================ scrollbar ============================ */
+
+#task-list::-webkit-scrollbar,
+.nav-main::-webkit-scrollbar {
+  width: 9px;
+}
+
+#task-list::-webkit-scrollbar-thumb,
+.nav-main::-webkit-scrollbar-thumb {
+  background: transparent;
+  border-radius: 9px;
+  /* 2px transparent border → thumb sits inset in its track, leaving a gap so it
+     never touches the rounded corners of the rows it scrolls past. */
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+
+/* theme-aware thumb (matches the active theme via --line) */
+#task-list:hover::-webkit-scrollbar-thumb {
+  background: var(--line);
+  background-clip: padding-box;
+}
+
+/* sidebar: thumb shows only while actively scrolling, never on plain hover */
+.nav-main.scrolling::-webkit-scrollbar-thumb {
+  background: var(--line);
+  background-clip: padding-box;
+}
+
+/* ============================ sidebar foot + structure ============================ */
+.nav-main {
+  position: relative; /* positioning context for .nav-indicator */
+  flex: 1;
+  min-height: 0;
+  overflow: hidden auto; /* y scrolls; x clipped so the pill can't spawn an h-scrollbar */
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.nav-item {
+  font-weight: 500;
+}
+.sidebar-foot {
+  flex: none;
+  position: relative;
+  z-index: 2; /* sits above the nav-indicator pill + scrolling lanes, which slide under it */
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 4px 2px;
+  margin-top: 6px;
+  background: var(--bg-sidebar);
+  border-top: 1px solid var(--line);
+}
+.foot-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  height: 30px;
+  padding: 0 8px;
+  border: none;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--text-dim);
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  -webkit-app-region: no-drag;
+  transition: background 140ms var(--ease-out), color 140ms var(--ease-out);
+}
+.foot-btn .nav-icon {
+  display: grid;
+  place-items: center;
+  color: var(--text-faint);
+  transition: color 140ms var(--ease-out);
+}
+.foot-btn:hover {
+  background: var(--hover);
+  color: var(--text);
+}
+.foot-btn:hover .nav-icon {
+  color: var(--accent);
+}
+.foot-btn:active {
+  transform: scale(0.97);
+}
+
+/* ============================ board header icon + tag bar ============================ */
+.board-header h1 {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  flex: 1; /* fill the board width so the title textarea wraps at full width, not its content size */
+  min-width: 0;
+}
+.board-icon {
+  display: inline-grid;
+  place-items: center;
+  height: 36px; /* one title line (font 30px × line-height 1.2); centers the glyph on the first line */
+  color: var(--accent);
+}
+
+/* burst completion ring (sidebar lane + board header). The clockwise sweep is
+   driven by setRingProgress via the Web Animations API (interruptible). */
+.pie-track {
+  stroke: var(--line);
+}
+.pie-arc {
+  stroke: var(--accent);
+}
+.board-title-text {
+  font-weight: 600;
+}
+
+.tag-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 0 36px 8px;
+  -webkit-app-region: no-drag;
+}
+.tag-pill {
+  height: 24px;
+  padding: 0 11px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: transparent;
+  color: var(--text-dim);
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 500;
+  -webkit-app-region: no-drag;
+  transition: background 130ms var(--ease-out), color 130ms var(--ease-out), border-color 130ms var(--ease-out);
+}
+.tag-pill:hover {
+  border-color: var(--accent);
+  color: var(--text);
+}
+.tag-pill.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--on-accent);
+}
+
+/* ============================ task row main + chips ============================ */
+.task-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.task-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.task-cp-flag {
+  flex: none;
+  display: grid;
+  place-items: center;
+  color: var(--text-faint);
+}
+.task-title.placeholder {
+  color: var(--text-faint);
+}
+.task-meta {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  flex: none;
+}
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 20px;
+  padding: 0 9px;
+  border-radius: 999px;
+  font-size: 11.5px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+.chip.small {
+  height: 18px;
+  padding: 0 7px;
+  font-size: 10.5px;
+}
+.chip-today {
+  background: var(--sel);
+  color: var(--accent);
+}
+.chip-tag {
+  background: var(--hover);
+  color: var(--text-dim);
+}
+.chip-when {
+  background: var(--hover);
+  color: var(--text-dim);
+  cursor: pointer;
+}
+.chip-when.is-today {
+  background: var(--sel);
+  color: var(--accent);
+}
+.chip-when .when-ic {
+  display: inline-grid;
+  place-items: center;
+}
+.chip-x {
+  display: inline-grid;
+  place-items: center;
+  border: none;
+  background: transparent;
+  color: currentColor;
+  padding: 0;
+  margin-right: -2px;
+  opacity: 0.55;
+  -webkit-app-region: no-drag;
+}
+.chip-x:hover {
+  opacity: 1;
+}
+
+/* ============================ modal ============================ */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0);
+  transition: background 200ms var(--ease-out);
+}
+.modal-backdrop.open {
+  background: rgba(0, 0, 0, 0.28);
+}
+.modal-backdrop.closing {
+  background: rgba(0, 0, 0, 0);
+}
+.modal-panel {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  box-shadow: var(--shadow-modal);
+  max-height: 82vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  opacity: 0;
+  transform: scale(0.96);
+  transition: opacity 180ms var(--ease-out), transform 200ms var(--ease-out);
+  -webkit-app-region: no-drag;
+}
+.modal-backdrop.open .modal-panel {
+  opacity: 1;
+  transform: none;
+}
+.modal-backdrop.closing .modal-panel {
+  opacity: 0;
+}
+.modal-body {
+  overflow-y: auto;
+}
+.modal-backdrop.open .modal-body {
+  animation: modalContentIn 200ms var(--ease-out) 40ms both;
+}
+@keyframes modalContentIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+.modal-settings { width: min(640px, 92vw); }
+
+/* ============================ card tag input + checklist ============================ */
+.tag-input {
+  margin: 0;
+  border: none;
+  background: transparent;
+  outline: none;
+  font-family: inherit;
+  font-size: 13px;
+  color: var(--text);
+  padding: 2px 0;
+  min-width: 90px;
+  flex: 1;
+}
+.tag-input::placeholder {
+  color: var(--text-faint);
+}
+.cp {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 2px 4px;
+  border-radius: 7px;
+}
+.cp:hover {
+  background: var(--hover);
+}
+.cp-toggle {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  padding: 0; /* oat's button padding would stretch this into a pill */
+  box-sizing: border-box;
+  display: grid;
+  place-items: center;
+  border: 1.5px solid var(--check-border);
+  border-radius: 999px;
+  background: transparent;
+  -webkit-app-region: no-drag;
+  transition: border-color 100ms var(--ease-out), background 110ms var(--ease-out), transform 100ms var(--ease-out);
+}
+.cp-toggle:hover {
+  border-color: var(--accent);
+}
+.cp-toggle:active {
+  transform: scale(0.88);
+}
+.cp-toggle .icon {
+  width: 11px;
+  height: 11px;
+  color: var(--on-accent);
+  opacity: 0;
+  transform: scale(0.3);
+  filter: blur(2px);
+  transition: opacity 110ms var(--ease-out), transform 150ms var(--ease-out), filter 110ms var(--ease-out);
+}
+.cp.done .cp-toggle {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+.cp.done .cp-toggle .icon {
+  opacity: 1;
+  transform: scale(1);
+  filter: blur(0);
+}
+.cp-title {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  border: none;
+  background: transparent;
+  outline: none;
+  font-family: inherit;
+  font-size: 14px;
+  color: var(--text);
+}
+.cp-title::placeholder {
+  color: var(--text-faint);
+}
+.cp.done .cp-title {
+  color: var(--text-faint);
+  opacity: 0.6;
+}
+.cp-del {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-faint);
+  opacity: 0.4; /* faintly visible so the delete affordance is discoverable */
+  -webkit-app-region: no-drag;
+  transition: opacity 120ms var(--ease-out), color 120ms var(--ease-out), background 120ms var(--ease-out);
+}
+.cp:hover .cp-del {
+  opacity: 1;
+}
+.cp-del:hover {
+  background: var(--hover);
+  color: var(--accent);
+}
+
+/* ============================ settings ============================ */
+.settings {
+  padding: 22px 24px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.set-title {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+.set-label {
+  margin: 0 0 10px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+.theme-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(118px, 1fr));
+  gap: 10px;
+}
+.theme-swatch {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch; /* oat.min.css sets align-items:center on button, which collapses the preview */
+  gap: 7px;
+  width: 100%;
+  padding: 0;
+  border: none;
+  background: transparent;
+  -webkit-app-region: no-drag;
+}
+.ts-preview {
+  display: flex;
+  height: 62px;
+  border-radius: 9px;
+  overflow: hidden;
+  border: 2px solid transparent;
+  box-shadow: 0 0 0 1px var(--line);
+  transition: border-color 140ms var(--ease-out);
+}
+.theme-swatch.active .ts-preview {
+  border-color: var(--accent);
+}
+.theme-swatch:active {
+  transform: scale(0.98);
+}
+.ts-bar {
+  width: 30%;
+  height: 100%;
+}
+.ts-rows {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 5px;
+  padding: 0 9px;
+}
+.ts-dot {
+  width: 14px;
+  height: 14px;
+  border-radius: 999px;
+}
+.ts-line {
+  height: 5px;
+  border-radius: 3px;
+  width: 90%;
+  opacity: 0.85;
+}
+.ts-line.short {
+  width: 55%;
+  opacity: 0.5;
+}
+.ts-name {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-dim);
+  text-align: left;
+  padding-left: 2px;
+}
+.theme-swatch.active .ts-name {
+  color: var(--text);
+}
+
+/* ============================ in-place todo expansion ============================ */
+.expand-scrim {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  background: var(--bg);
+  opacity: 0;
+  transition: opacity 220ms var(--ease-out);
+}
+.expand-scrim.open {
+  opacity: 0.62;
+}
+.expand-card {
+  position: absolute;
+  z-index: 21;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  box-shadow: var(--shadow-modal);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  will-change: transform;
+  -webkit-app-region: no-drag;
+}
+.expand-body {
+  flex: 1;
+  overflow-y: auto;
+  opacity: 0;
+  transition: opacity 160ms var(--ease-out);
+}
+.expand-card.open .expand-body {
+  opacity: 1;
+  transition: opacity 200ms var(--ease-out) 60ms;
+}
+
+/* ============================ in-flow expanded to-do card ============================ */
+.task.expanded {
+  display: block;
+  background: var(--surface);
+  box-shadow: 0 0 0 1px var(--line), var(--shadow-modal);
+  /* top/left match the collapsed row (7px / 12px) so the title doesn't jump
+     when expanding or collapsing; extra bottom padding for the card body. */
+  padding: 7px 12px 12px;
+  cursor: default;
+}
+
+/* the card floats over the list as an overlay (mounted in #board), so opening a
+   todo never pushes the rest of the list — it just lifts above it. */
+.card-overlay {
+  position: absolute;
+  z-index: 20;
+  margin: 0;
+  border-radius: var(--radius-row);
+}
+.card-top {
+  display: flex;
+  align-items: flex-start; /* checkbox stays by the first line when the title wraps */
+  gap: 11px;
+}
+.card-top .checkbox {
+  margin-top: 2px; /* center it on the first line (matches the collapsed row) */
+}
+.card-title {
+  display: block;
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  min-height: 0; /* override oat's textarea min-height:5rem so it hugs one line */
+  border: none;
+  background: transparent;
+  outline: none;
+  resize: none; /* textarea: no drag handle, no scrollbar — height is auto-sized in JS */
+  overflow: hidden;
+  font-family: inherit;
+  font-size: 14.5px; /* match .task-title so the text doesn't resize on expand/collapse */
+  font-weight: 450;
+  line-height: 1.35; /* match .task-title */
+  color: var(--text);
+}
+.card-title::placeholder {
+  color: var(--text-faint);
+}
+.task.expanded.is-done .card-title {
+  color: var(--text-faint);
+  opacity: 0.6;
+}
+.card-detail {
+  padding-left: 29px;
+}
+/* The card's grow/shrink + the staggered blur reveal are sprung in JS (ui/anim.ts):
+   it grows to a measured height, which CSS can't animate to (height: auto). */
+.card-notes {
+  display: block;
+  width: 100%;
+  margin: 2px 0 12px; /* vertical breathing room around the notes (padding fights border-box height) */
+  padding: 0; /* override oat's textarea padding */
+  min-height: 0; /* override oat's textarea min-height:5rem so it can size to 1 line */
+  border: none;
+  background: transparent;
+  outline: none;
+  resize: none;
+  font-family: inherit;
+  font-size: 13.5px;
+  line-height: 1.35;
+  color: var(--text-dim);
+  overflow: hidden;
+}
+.card-notes::placeholder {
+  color: var(--text-faint);
+}
+.card-tags {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin: 6px 0;
+}
+.card-cp-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  margin: 4px 0 2px;
+}
+.card-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 4px;
+}
+.card-meta-actions {
+  display: flex;
+  gap: 2px;
+}
+.meta-ic {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 28px;
+  border: none;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--text-faint);
+  -webkit-app-region: no-drag;
+  transition: background 130ms var(--ease-out), color 130ms var(--ease-out);
+}
+.meta-ic:hover {
+  background: var(--hover);
+  color: var(--accent);
+}
+.meta-ic:active {
+  transform: scale(0.94);
+}
+
+/* ============================ anchored New popover ============================ */
+.new-popover {
+  position: fixed;
+  z-index: 120;
+  width: 300px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  box-shadow: var(--shadow-modal);
+  padding: 8px;
+  opacity: 0;
+  transform: scale(0.96) translateY(4px);
+  transition: opacity 150ms var(--ease-out), transform 170ms var(--ease-out);
+}
+.new-popover.open {
+  opacity: 1;
+  transform: none;
+}
+.new-popover.closing {
+  opacity: 0;
+  transform: scale(0.98) translateY(2px);
+}
+.np-options {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.np-option {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 9px 10px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  text-align: left;
+  font-family: inherit;
+  -webkit-app-region: no-drag;
+  transition: background 130ms var(--ease-out);
+}
+.np-option:hover {
+  background: var(--hover);
+}
+.np-option:active {
+  transform: scale(0.99);
+}
+.np-icon {
+  display: inline-grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  flex: none;
+  border-radius: 7px;
+  background: var(--sel);
+  color: var(--accent);
+}
+.np-text {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.np-name {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--text);
+}
+.np-desc {
+  font-size: 12px;
+  color: var(--text-dim);
+}
+.np-foot {
+  margin: 8px 6px 4px;
+  font-size: 11.5px;
+  line-height: 1.45;
+  color: var(--text-faint);
+}
+.np-foot b {
+  color: var(--text-dim);
+  font-weight: 600;
+}
+
+/* right-click context menu — reuses .new-popover's box + motion, narrower rows.
+   max-height + scroll keeps a long "Move to…" list inside the viewport. */
+.ctx-menu {
+  width: auto;
+  min-width: 196px;
+  max-height: calc(100vh - 16px);
+  overflow-y: auto;
+  padding: 6px;
+}
+.ctx-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 7px 10px;
+  border: none;
+  border-radius: 7px;
+  background: transparent;
+  text-align: left;
+  font-family: inherit;
+  font-size: 13.5px;
+  color: var(--text);
+  -webkit-app-region: no-drag;
+  transition: background 130ms var(--ease-out);
+}
+.ctx-item:hover {
+  background: var(--hover);
+}
+.ctx-item:active {
+  transform: scale(0.99);
+}
+.ctx-icon {
+  display: inline-grid;
+  place-items: center;
+  width: 16px;
+  height: 16px;
+  flex: none;
+  color: var(--text-faint);
+}
+.ctx-label {
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.ctx-chevron {
+  flex: none;
+  color: var(--text-faint);
+  font-size: 15px;
+  line-height: 1;
+}
+.ctx-item.danger,
+.ctx-item.danger .ctx-icon {
+  color: #c64545;
+}
+.ctx-sep {
+  height: 1px;
+  margin: 5px 8px;
+  background: var(--line);
+}
+
+/* editable burst/arc name in the board header (right side) */
+.board-title-input {
+  display: block;
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: transparent;
+  outline: none;
+  resize: none;
+  overflow: hidden;
+  line-height: 1.2;
+  font-family: inherit;
+  font-size: 22px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--text);
+  -webkit-app-region: no-drag;
+}
+.board-title-input::placeholder {
+  color: var(--text-faint);
+}
+
+/* ============================ Claude editorial overrides ============================ */
+/* Serif display headings (Cormorant Garamond → ui-serif fallback) */
+.board-title-text,
+.board-title-input {
+  font-family: var(--font-serif);
+  font-size: 27px;
+  font-weight: 500;
+  line-height: 1.2; /* match the textarea so span + textarea titles share one line box */
+  letter-spacing: -0.01em;
+}
+.board-header h1 {
+  gap: 10px;
+  /* anchor the icon to the title's FIRST line, not the center of the textarea's
+     box (which is taller than the text and top-anchored, dropping the icon low) */
+  align-items: flex-start;
+}
+.set-title {
+  font-family: var(--font-serif);
+  font-size: 25px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+/* warm uppercase section labels (Claude caption-uppercase) */
+.section-head h2 {
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  color: var(--text-faint);
+}
+
+/* Claude card radius (lg = 12) */
+.modal-panel,
+.task.expanded,
+.new-popover {
+  border-radius: var(--radius-card);
+}
+
+/* ============================ suggestion tweaks ============================ */
+/* bigger, bolder serif board title; emphasize it's the title */
+.board-title-text,
+.board-title-input {
+  font-size: 30px;
+  font-weight: 600;
+}
+/* count beside the title removed */
+.board-count {
+  display: none;
+}
+/* destructive action color in the open to-do */
+.meta-ic.danger:hover {
+  background: var(--hover);
+  color: #c64545;
+}
+/* New popover: left-aligned, fills the box, no wasted space */
+.new-popover {
+  width: 290px;
+  padding: 6px;
+}
+.np-option {
+  gap: 12px;
+  padding: 10px;
+}
+.np-text {
+  flex: 1;
+  min-width: 0;
+}
+.np-desc {
+  white-space: normal;
+  line-height: 1.35;
+}
+.np-foot {
+  margin: 6px 8px 4px;
+}
+
+/* rounder tab labels (sidebar nav) + the sliding selection indicator */
+.nav-item,
+.nav-indicator {
+  border-radius: 10px;
+}
+
+/* clearly-visible sliding selection pill with a spring slide (AnimatedBackground feel) */
+.nav-indicator {
+  background: var(--sel);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 32%, transparent);
+  transition:
+    transform 300ms var(--ease-spring),
+    height 300ms var(--ease-spring),
+    opacity 150ms var(--ease-out);
+}
+
+/* indicator transform is driven by the JS spring (WAAPI); only fade opacity in CSS */
+.nav-indicator {
+  transition: opacity 150ms var(--ease-out);
+}
+
+/* keep the sliding pill on its own compositor layer (smooth during board re-render) */
+.nav-indicator {
+  will-change: transform;
+}
+
+/* ============================ tag-filter sliding pill (FluidTabs) ============================ */
+.tag-bar {
+  position: relative;
+}
+.tag-pill {
+  position: relative;
+  z-index: 1;
+}
+.tag-pill.active {
+  background: transparent;
+  border-color: transparent;
+  color: var(--on-accent);
+}
+.tag-pill.active:hover {
+  border-color: transparent;
+  color: var(--on-accent);
+}
+.tag-indicator {
+  position: absolute;
+  left: 0;
+  top: 0;
+  height: 24px;
+  border-radius: 999px;
+  background: var(--accent);
+  opacity: 0;
+  z-index: 0;
+  pointer-events: none;
+  will-change: transform, width;
+  transition: opacity 150ms var(--ease-out);
+}
