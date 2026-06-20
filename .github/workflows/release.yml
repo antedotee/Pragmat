@@ -70,13 +70,19 @@ jobs:
 
             Download the installer for your platform below.
 
-            ### macOS (unsigned)
-            This build isn't notarized, so macOS will say *"Pragmat is damaged"* on first open.
-            After dragging it to Applications, run once in Terminal:
+            ### macOS (free, unsigned build)
+            Download the right `.dmg` — Apple Silicon → `*_aarch64.dmg`, Intel → `*_x64.dmg` —
+            and drag Pragmat to Applications. Because it isn't notarized, macOS blocks it the
+            first time. To open it:
+
+            1. Double-click Pragmat (it gets blocked — that's expected).
+            2. Open  → **System Settings → Privacy & Security**, scroll down, and click
+               **Open Anyway**, then confirm. It opens normally from then on.
+
+            If it instead says *"Pragmat is damaged"* (no Open Anyway button), open Terminal once:
             ```
             xattr -cr /Applications/Pragmat.app
             ```
-            Apple Silicon → `*_aarch64.dmg`, Intel → `*_x64.dmg`.
 
             ### Windows (unsigned)
             SmartScreen may warn — click **More info → Run anyway**.
