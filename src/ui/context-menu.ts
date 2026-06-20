@@ -1,10 +1,10 @@
 import { icon, type IconName } from "../icons";
-import { spring, clamp01 } from "./anim";
 
 // A right-click menu that reuses the "New" popover's box + motion. Items with
 // `children` are submenus: hovering the row flies a child menu out to the side
-// (macOS-style), clamped on-screen and scrollable. The open uses the Disclosure
-// spring via `spring()` (see anim.ts); the close is a quick fixed ease.
+// (macOS-style), clamped on-screen and scrollable. Open/close run through the
+// CSS `.open`/`.closing` transitions on `.new-popover` (NOT WAAPI) — CSS plays
+// even when the OS has Reduce Motion on, which WebKit applies to Web Animations.
 
 export type ContextItem =
   | "sep"
@@ -15,7 +15,6 @@ interface MenuOpts {
   openMs?: number; // open-animation duration (default = the soft disclosure spring's own)
 }
 
-const DISCLOSURE_SPRING = { stiffness: 26.7, damping: 4.1, mass: 0.2 };
 const OPEN_DELAY = 90; // hover dwell before a submenu opens (avoids flicker passing over)
 const CLOSE_DELAY = 180; // grace period to cross from the row into its submenu
 
@@ -55,7 +54,7 @@ export function openContextMenu(x: number, y: number, items: ContextItem[], opts
   const r = root.el.getBoundingClientRect();
   root.el.style.left = `${Math.max(8, Math.min(x, window.innerWidth - r.width - 8))}px`;
   root.el.style.top = `${Math.max(8, Math.min(y, window.innerHeight - r.height - 8))}px`;
-  playOpen(root.el, opts.openMs, "top left");
+  playOpen(root.el, "top left");
 
   rootClose = dismiss;
   window.setTimeout(() => {
@@ -72,8 +71,6 @@ interface Built {
 function buildMenu(items: ContextItem[], opts: MenuOpts, dismiss: () => void, chain: Set<HTMLElement>): Built {
   const pop = document.createElement("div");
   pop.className = "new-popover ctx-menu";
-  pop.style.transition = "none"; // WAAPI drives open/close, not CSS
-  pop.style.transform = "none"; // neutralise the CSS scale so getBoundingClientRect is true-size
   if (opts.minWidth != null) pop.style.minWidth = `${opts.minWidth}px`;
   chain.add(pop);
 
@@ -118,7 +115,7 @@ function buildMenu(items: ContextItem[], opts: MenuOpts, dismiss: () => void, ch
         const c = buildMenu(kids, opts, dismiss, chain);
         document.body.appendChild(c.el);
         positionBeside(c.el, b, pop);
-        playOpen(c.el, opts.openMs, "left top");
+        playOpen(c.el, "left top");
         c.el.addEventListener("mouseenter", () => clearTimeout(closeT));
         c.el.addEventListener("mouseleave", () => (closeT = window.setTimeout(closeChild, CLOSE_DELAY)));
         child = c;
@@ -161,30 +158,17 @@ function positionBeside(childEl: HTMLElement, itemEl: HTMLElement, parentEl: HTM
   childEl.style.top = `${top}px`;
 }
 
-function playOpen(el: HTMLElement, openMs: number | undefined, origin: string): void {
+function playOpen(el: HTMLElement, origin: string): void {
   el.style.transformOrigin = origin;
-  el.style.opacity = "0";
-  const anim = spring(
-    el,
-    (t) => ({ opacity: String(clamp01(t)), transform: `translateY(${(1 - t) * 8}px) scale(${0.9 + t * 0.1})` }),
-    DISCLOSURE_SPRING,
-    openMs !== undefined ? { duration: openMs } : {},
-  );
-  anim.addEventListener("finish", () => {
-    el.style.opacity = "1";
-    el.style.transform = "none";
-    anim.cancel();
-  });
+  // CSS `.open` transition (plays under Reduce Motion, unlike WAAPI). Force a
+  // reflow so the resting state commits before flipping to `.open`.
+  void el.offsetWidth;
+  el.classList.add("open");
 }
 
 function animateOut(el: HTMLElement): void {
-  el.getAnimations().forEach((a) => a.cancel());
-  const out = el.animate(
-    [
-      { opacity: 1, transform: "none" },
-      { opacity: 0, transform: "translateY(4px) scale(0.97)" },
-    ],
-    { duration: 110, easing: "cubic-bezier(0.4, 0, 1, 1)", fill: "forwards" },
-  );
-  out.addEventListener("finish", () => el.remove());
+  el.classList.remove("open");
+  el.classList.add("closing");
+  el.addEventListener("transitionend", () => el.remove(), { once: true });
+  window.setTimeout(() => el.remove(), 250); // fallback if transitionend doesn't fire
 }

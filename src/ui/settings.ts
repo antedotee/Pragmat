@@ -1,5 +1,6 @@
 import { openModal } from "./modal";
 import { THEMES, applyTheme, savedThemeId, type Theme } from "../themes";
+import { setSetting } from "../db";
 
 function swatch(t: Theme, active: boolean): HTMLButtonElement {
   const el = document.createElement("button");
@@ -30,7 +31,8 @@ export function openSettings(onThemeChange: () => void): void {
   for (const t of THEMES) {
     const el = swatch(t, t.id === current);
     el.addEventListener("click", () => {
-      applyTheme(t.id);
+      applyTheme(t.id); // fast: DOM + localStorage
+      void setSetting("theme", t.id); // durable: survives restarts
       grid.querySelectorAll(".theme-swatch.active").forEach((e) => e.classList.remove("active"));
       el.classList.add("active");
       onThemeChange();

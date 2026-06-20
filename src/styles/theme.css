@@ -40,6 +40,8 @@
   --accent-press: #a9583e;
   --on-accent: #ffffff;
 
+  --overdue: #e5484d; /* sharp red for passed deadlines (theme-independent) */
+
   --shadow-modal: 0 16px 50px rgba(20, 20, 19, 0.13);
 
   /* Claude radii: md (8) for rows/controls, lg (12) for cards/modals */

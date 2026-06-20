@@ -1,5 +1,7 @@
 import { type Task, type View, hasCheckpoints } from "../state";
 import { icon } from "../icons";
+import { fromISODate, formatBadge, deadlineLabel } from "../date";
+import { TASK_CP_FLAG } from "./cls";
 
 export interface RowHandlers {
   view: View;
@@ -42,7 +44,9 @@ function selectRange(li: HTMLElement, anchor: number): void {
   rows.forEach((r, i) => r.classList.toggle("selected", i >= lo && i <= hi));
 }
 
-export function createTaskEl(task: Task, h: RowHandlers): HTMLLIElement {
+// `hideDate` suppresses the leading date badge — used on dense agenda days,
+// where the day header already names the date.
+export function createTaskEl(task: Task, h: RowHandlers, opts: { hideDate?: boolean } = {}): HTMLLIElement {
   const li = document.createElement("li");
   li.className = "task" + (task.status === "done" ? " done" : "");
   li.dataset.id = String(task.id);
@@ -59,6 +63,13 @@ export function createTaskEl(task: Task, h: RowHandlers): HTMLLIElement {
 
   const main = document.createElement("div");
   main.className = "task-main";
+
+  if (task.due_date && !opts.hideDate) {
+    const badge = document.createElement("span");
+    badge.className = "task-date-badge";
+    badge.textContent = formatBadge(fromISODate(task.due_date));
+    main.append(badge); // leading "8 Jul" pill, ahead of the title
+  }
 
   const title = document.createElement("div");
   title.className = "task-title";
@@ -126,9 +137,18 @@ export function createTaskEl(task: Task, h: RowHandlers): HTMLLIElement {
   // Faint glyph at the right edge signalling this to-do carries checkpoints.
   if (hasCheckpoints(task.id)) {
     const flag = document.createElement("span");
-    flag.className = "task-cp-flag";
+    flag.className = TASK_CP_FLAG;
     flag.innerHTML = icon("checklist", 13);
     li.append(flag);
+  }
+
+  // Deadline indicator at the far right: flag + countdown, red once overdue.
+  if (task.deadline) {
+    const { text, overdue } = deadlineLabel(fromISODate(task.deadline), new Date());
+    const dl = document.createElement("span");
+    dl.className = "task-deadline" + (overdue ? " is-overdue" : "");
+    dl.innerHTML = `${icon("flag", 12)}<span>${text}</span>`;
+    li.append(dl);
   }
   return li;
 }

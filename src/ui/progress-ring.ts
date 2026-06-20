@@ -16,8 +16,8 @@ const offset = (frac: number): number => C * (1 - clamp(frac)); // 0% → whole 
 
 export function progressRing(size: number, frac: number): string {
   return `<svg class="pie" width="${size}" height="${size}" viewBox="0 0 100 100" fill="none" aria-hidden="true">
-    <circle class="pie-track" cx="50" cy="50" r="${R}" stroke-width="12"/>
-    <circle class="pie-arc" cx="50" cy="50" r="${R}" stroke-width="12" stroke-linecap="round"
+    <circle class="pie-track stroke-line" cx="50" cy="50" r="${R}" stroke-width="12"/>
+    <circle class="pie-arc stroke-accent" cx="50" cy="50" r="${R}" stroke-width="12" stroke-linecap="round"
       transform="rotate(-90 50 50)" stroke-dasharray="${C}" stroke-dashoffset="${offset(frac)}"/>
   </svg>`;
 }

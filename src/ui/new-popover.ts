@@ -1,13 +1,9 @@
 import { icon, type IconName } from "../icons";
-import { spring, clamp01 } from "./anim";
 
 export interface NewPopoverHandlers {
   onBurst: () => void;
   onArc: () => void;
 }
-
-// The DisclosureCard spring — soft, slow, near-zero bounce.
-const DISCLOSURE_SPRING = { stiffness: 26.7, damping: 4.1, mass: 0.2 };
 
 // Only one popover at a time. Clicking New while it's open closes it (toggle).
 let activeClose: (() => void) | null = null;
@@ -30,7 +26,6 @@ export function openNewPopover(anchor: HTMLElement, h: NewPopoverHandlers): void
 
   const pop = document.createElement("div");
   pop.className = "new-popover";
-  pop.style.transition = "none"; // WAAPI drives open/close, not CSS
   pop.innerHTML = `<div class="np-options"></div>
     <p class="np-foot">A <b>burst</b> is a finite project you finish. An <b>arc</b> is an ongoing area of life.</p>`;
   document.body.appendChild(pop);
@@ -52,18 +47,12 @@ export function openNewPopover(anchor: HTMLElement, h: NewPopoverHandlers): void
   pop.style.top = `${Math.max(8, a.top - r.height - 8)}px`;
   pop.style.transformOrigin = "bottom left";
 
-  // open with the Disclosure spring
-  pop.style.opacity = "0";
-  const openAnim = spring(
-    pop,
-    (t) => ({ opacity: String(clamp01(t)), transform: `translateY(${(1 - t) * 8}px) scale(${0.9 + t * 0.1})` }),
-    DISCLOSURE_SPRING,
-  );
-  openAnim.addEventListener("finish", () => {
-    pop.style.opacity = "1";
-    pop.style.transform = "none";
-    openAnim.cancel();
-  });
+  // Open with the CSS disclosure transition (the `.open` class), NOT WAAPI — CSS
+  // transitions play even when the OS has Reduce Motion on, whereas WebKit
+  // (WKWebView) suppresses Web Animations under reduced motion. Force a reflow so
+  // the resting state (opacity 0 / scaled) commits before flipping to `.open`.
+  void pop.offsetWidth;
+  pop.classList.add("open");
 
   let closed = false;
   function close(): void {
@@ -72,15 +61,10 @@ export function openNewPopover(anchor: HTMLElement, h: NewPopoverHandlers): void
     activeClose = null;
     document.removeEventListener("mousedown", onOut, true);
     document.removeEventListener("keydown", onKey, true);
-    pop.getAnimations().forEach((an) => an.cancel());
-    const out = pop.animate(
-      [
-        { opacity: 1, transform: "none" },
-        { opacity: 0, transform: "translateY(4px) scale(0.97)" },
-      ],
-      { duration: 130, easing: "cubic-bezier(0.4, 0, 1, 1)", fill: "forwards" },
-    );
-    out.addEventListener("finish", () => pop.remove());
+    pop.classList.remove("open");
+    pop.classList.add("closing");
+    pop.addEventListener("transitionend", () => pop.remove(), { once: true });
+    window.setTimeout(() => pop.remove(), 250); // fallback if transitionend doesn't fire
   }
 
   function onOut(e: MouseEvent): void {

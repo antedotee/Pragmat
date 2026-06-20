@@ -15,6 +15,11 @@ export type IconName =
   | "settings"
   | "tag"
   | "checklist"
+  | "grip"
+  | "search"
+  | "calendar"
+  | "edit"
+  | "flag"
   | "x";
 
 const PATHS: Record<IconName, string> = {
@@ -63,11 +68,27 @@ const PATHS: Record<IconName, string> = {
   // ListUnordered (checklist)
   checklist:
     '<path fill-rule="evenodd" clip-rule="evenodd" d="M2.5 4C3.19036 4 3.75 3.44036 3.75 2.75C3.75 2.05964 3.19036 1.5 2.5 1.5C1.80964 1.5 1.25 2.05964 1.25 2.75C1.25 3.44036 1.80964 4 2.5 4ZM2.5 9.25C3.19036 9.25 3.75 8.69036 3.75 8C3.75 7.30964 3.19036 6.75 2.5 6.75C1.80964 6.75 1.25 7.30964 1.25 8C1.25 8.69036 1.80964 9.25 2.5 9.25ZM3.75 13.25C3.75 13.9404 3.19036 14.5 2.5 14.5C1.80964 14.5 1.25 13.9404 1.25 13.25C1.25 12.5596 1.80964 12 2.5 12C3.19036 12 3.75 12.5596 3.75 13.25ZM6.75 2H6V3.5H6.75H14.25H15V2H14.25H6.75ZM6.75 7.25H6V8.75H6.75H14.25H15V7.25H14.25H6.75ZM6.75 12.5H6V14H6.75H14.25H15V12.5H14.25H6.75Z" fill="currentColor"/>',
+  // MagnifyingGlass
+  search:
+    '<path fill-rule="evenodd" clip-rule="evenodd" d="M6.5 1a5.5 5.5 0 1 0 3.4 9.82l3.84 3.84 1.06-1.06-3.84-3.84A5.5 5.5 0 0 0 6.5 1ZM2.5 6.5a4 4 0 1 1 8 0 4 4 0 0 1-8 0Z" fill="currentColor"/>',
+  // DragHandle — three horizontal stripes
+  grip:
+    '<path fill-rule="evenodd" clip-rule="evenodd" d="M2 3.25h12v1.5H2zM2 7.25h12v1.5H2zM2 11.25h12v1.5H2z" fill="currentColor"/>',
+  // Pencil (edit / rename) — Lucide pencil silhouette, scaled to 16
+  edit:
+    '<path d="M14.116 4.5413a0.6667 0.6667 0 0 0-2.6573-2.658L2.5613 10.7827a1.3333 1.3333 0 0 0-0.3333 0.5533l-0.8807 2.9013a0.3333 0.3333 0 0 0 0.4153 0.4147l2.902-0.88a1.3333 1.3333 0 0 0 0.5533-0.3313z" fill="currentColor"/>',
+  // Calendar
+  calendar:
+    '<path fill-rule="evenodd" clip-rule="evenodd" d="M5 0H3.5V1H2C0.895431 1 0 1.89543 0 3V14C0 15.1046 0.89543 16 2 16H14C15.1046 16 16 15.1046 16 14V3C16 1.89543 15.1046 1 14 1H12.5V0H11V1H5V0ZM14.5 5.5V3C14.5 2.72386 14.2761 2.5 14 2.5H2C1.72386 2.5 1.5 2.72386 1.5 3V5.5H14.5ZM1.5 7V14C1.5 14.2761 1.72386 14.5 2 14.5H14C14.2761 14.5 14.5 14.2761 14.5 14V7H1.5Z" fill="currentColor"/>',
+  // Flag (deadline) — solid waving pennant on a pole
+  flag:
+    '<path fill-rule="evenodd" clip-rule="evenodd" d="M3 0.75V15.25H4.5V9.5H12.75L11.25 5.5L12.75 1.5H4.5V0.75H3Z" fill="currentColor"/>',
   // Cross
   x:
     '<path fill-rule="evenodd" clip-rule="evenodd" d="M12.4697 13.5303L13 14.0607L14.0607 13L13.5303 12.4697L9.06065 7.99999L13.5303 3.53032L14.0607 2.99999L13 1.93933L12.4697 2.46966L7.99999 6.93933L3.53032 2.46966L2.99999 1.93933L1.93933 2.99999L2.46966 3.53032L6.93933 7.99999L2.46966 12.4697L1.93933 13L2.99999 14.0607L3.53032 13.5303L7.99999 9.06065L12.4697 13.5303Z" fill="currentColor"/>',
 };
 
-export function icon(name: IconName, size = 16): string {
-  return `<svg class="icon" width="${size}" height="${size}" viewBox="0 0 16 16" fill="none" aria-hidden="true">${PATHS[name]}</svg>`;
+export function icon(name: IconName, size = 16, className = ""): string {
+  const cls = className ? `icon ${className}` : "icon";
+  return `<svg class="${cls}" width="${size}" height="${size}" viewBox="0 0 16 16" fill="none" aria-hidden="true">${PATHS[name]}</svg>`;
 }

@@ -8,6 +8,11 @@ export interface SpringParams {
 // content transition, so switching labels feels like one unified motion.
 export const TAB_SPRING: SpringParams = { stiffness: 380, damping: 34, mass: 0.75 };
 
+// The "DisclosureCard" reveal used by the New popover and the Quick Find modal so
+// both open with the same motion. Critically damped (no bounce) and tuned to
+// settle in ~220ms — Emil's rule: UI motion stays under 300ms.
+export const DISCLOSURE_SPRING: SpringParams = { stiffness: 600, damping: 22, mass: 0.2 };
+
 // Damped-spring simulation from `from` to `to`. Returns sample positions at
 // 120fps — feed to element.animate() as keyframes with linear easing for a
 // physically accurate spring (what Framer Motion's `type: "spring"` produces).

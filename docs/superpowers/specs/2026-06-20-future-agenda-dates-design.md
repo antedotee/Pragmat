@@ -11,15 +11,22 @@ lane (Today / burst / arc / Whenever / Down-the-road). Dates are set from the
 expanded card via a date popover where you can **type** the date (natural-ish
 language), pick a quick option, or click a mini month grid.
 
-## Decisions (settled in brainstorming)
+## Decisions (settled in brainstorming, revised after first review)
 
 - **Parser:** lightweight, built-in, **no new dependency**. Covers `today`,
   `tomorrow`, weekday names (`mon`, `next fri`), `in N days/weeks/months`,
   `8 jul` / `jul 8`, ISO `YYYY-MM-DD`, and a bare day number (`28`).
-- **Dates are independent of lane** (orthogonal to `schedule`/`burst_id`/`arc_id`).
-  Setting a date never moves a to-do between lanes; it just makes the to-do
-  appear in the Future agenda *in addition* to its home lane. Clearing the date
-  removes it from the agenda only.
+- **Lanes are mutually exclusive; Future ⟺ a date** *(revised)*. A to-do is in at
+  most one of: Today, Future (= has a `due_date`), Whenever, Down-the-road, or
+  none (raw). Setting a date moves it to Future (schedule → `future`); ⌘T moves it
+  to Today (clears the date); clearing the date drops it back to raw. There is no
+  "no date" group in Future — an undated to-do simply isn't there.
+- **Burst/arc filing is orthogonal** to the lane. A to-do lives in "burst + today"
+  or "burst + future", never two lanes at once. Burst/arc views show their
+  to-dos regardless of lane.
+- **New to-dos default to raw (nowhere)** *(revised)* — including ones created
+  inside a burst/arc (they're just filed there until dated or ⌘T'd). Raws view =
+  unscheduled **and** unfiled (and undated).
 - **Quick picks:** Today, Tomorrow, Clear date.
 - **Popover:** type field + live preview + quick picks + clickable mini month grid.
 - **Whole-day only.** No time-of-day, no reminders/notifications (out of scope —
@@ -36,6 +43,8 @@ language), pick a quick option, or click a mini month grid.
 ```sql
 ALTER TABLE tasks ADD COLUMN due_date TEXT;   -- ISO 'YYYY-MM-DD', NULL = no date
 CREATE INDEX IF NOT EXISTS idx_tasks_due_date ON tasks(due_date);
+-- Legacy 'future' to-dos have no date under the new model → back to the inbox.
+UPDATE tasks SET schedule = 'raw' WHERE schedule = 'future';
 ```
 
 Register as `Migration { version: 4, ... include_str!("../migrations/004_due_date.sql") }`
@@ -44,14 +53,23 @@ in `src-tauri/src/lib.rs`.
 ### State (`src/state.ts`)
 - `Task` gains `due_date: string | null`. `TaskRow` inherits it via
   `Omit<Task, "tags">`; `parseTaskRow` already spreads `...r`, so no parse change.
-- New mutation:
-  ```ts
-  export async function setTaskDueDate(id: number, due: string | null): Promise<void>
-  ```
-  `record()`-wrapped (undoable), `UPDATE tasks SET due_date = ?`, mirror into
-  `state.tasks`.
-- `duplicateTask` copies `due_date` (add to INSERT column list + the returned object).
-- `addTask` leaves `due_date` null (column default).
+- **The lane invariant `schedule="future" ⟺ due_date != null` is maintained by the
+  mutations** (not by callers):
+  - `setTaskDueDate(id, due)` — sets the date and flips schedule: `due` → `future`,
+    `null` → `raw`. `record()`-wrapped.
+  - `setTaskSchedule(id, schedule)` — moving to any non-future lane also clears
+    `due_date` (lanes are mutually exclusive). Dating goes through `setTaskDueDate`.
+  - `moveTasks` — dateless-lane destinations (today/whenever/downtheroad/raw) clear
+    the date; burst/arc filing leaves schedule+date untouched (orthogonal).
+- View filters: **Future = `due_date != null`**; **Raws = `schedule="raw" && unfiled
+  && undated`**; Today/Whenever/Down-the-road unchanged (`schedule===…`).
+- `contextForView` returns **raw** for burst/arc/future/raw views (new to-dos start
+  nowhere); `today` → today; whenever/downtheroad → themselves.
+- **Creating in Future** gives the to-do a date so it has a home: `newTask` passes
+  `addTask(ctx, dayISO)` where `dayISO` = the selected agenda row's day ("cursor
+  last position") or else **today**. `addTask(ctx, dueDate?)` sets schedule=future
+  when a date is given.
+- `duplicateTask` copies `due_date`; bare `addTask` leaves it null.
 
 ## `src/date.ts` (new, pure — no DOM)
 
@@ -124,36 +142,30 @@ Layout (top → bottom):
 
 ### Grouping (`src/state.ts`)
 ```ts
-const AGENDA_MONTHS = 12;   // ponytail: fixed horizon; make it a setting if users ask
-
 interface AgendaModel {
-  noDate: Task[];                              // schedule==="future" && due_date==null
-  dense:  { date: Date; tasks: Task[] }[];     // today → end of current month, EVERY day
-  tail:   { month: Date; days: { date: Date; tasks: Task[] }[] }[]; // next month → +12mo
+  dense: { date: Date; tasks: Task[] }[];                          // today → end of current month, EVERY day
+  tail:  { month: Date; days: { date: Date; tasks: Task[] }[] }[]; // later months, dated days only
 }
 export function futureAgenda(today?: Date): AgendaModel
 ```
-- Dated set = **all open tasks with `due_date != null`** (any schedule/lane),
-  bucketed by ISO date.
+- Dated set = **all open tasks with `due_date != null`** (any lane/burst/arc),
+  bucketed by ISO date. There is **no `noDate` group** — Future ⟺ a date.
 - `dense`: for each day `d` from today through end of current month,
   `tasks = byDate[iso(d)] ?? []`. **Overdue** (any open task with
-  `due_date < today`) folds into today's bucket.
-- `tail`: for each month from next month through +`AGENDA_MONTHS`, include only
-  days that have tasks; skip months with none.
-- `noDate`: open `schedule==="future"` tasks with `due_date == null`.
+  `due_date < today`) folds into today's bucket but **keeps its date badge
+  visible** (a row hides its badge only when it sits on its own day).
+- `tail`: every later month that has dated tasks (no fixed horizon — months with
+  nothing are skipped, so it spans only as far as the user has planned).
 - Within a day, sort by `sort_order, id` (existing convention).
 
-`tasksForView("future")` changes from `schedule==="future"` to the flat union
-**open tasks where `due_date != null` OR `schedule==="future"`** (sorted by
-`due_date` then `sort_order`) — so the sidebar count matches what the agenda
-shows. The Future view *renders* via `futureAgenda()` (below), not the flat list.
+`tasksForView("future")` = **open tasks where `due_date != null`** — drives the
+sidebar count. The Future view *renders* via `futureAgenda()` (below).
 
 ### Rendering (`src/ui/board.ts`)
 `renderList` short-circuits for Future **before** the generic empty-state check
 (`if (view.type === "future") { renderAgenda(...); return; }`) — the dense
 calendar always renders, even with zero tasks, so "show all the dates of the
 current month even if empty" holds. `renderAgenda`:
-- **No date** header + rows (if `noDate` non-empty).
 - **Dense:** per day, an `.agenda-day` header (`formatDayHeader` → big number +
   weekday) then rows. Empty days render the header faint, no rows.
 - **Tail:** per month, an `.agenda-month` header (`August`) then its days' rows.
@@ -163,14 +175,15 @@ current month even if empty" holds. `renderAgenda`:
 `createTaskEl(task, h, opts?: { hideDate?: boolean })`:
 - When `task.due_date` is set and not `hideDate`, prepend a `.task-date-badge`
   (`formatBadge` → `8 Jul`) before the title. Matches screenshots 4 & 5.
-- Dense agenda days pass `hideDate: true` (the day header already shows it). No
-  date suppression elsewhere (Today / burst / arc / tail rows all show the badge).
+- Dense agenda days pass `hideDate: task.due_date === dayISO` — a row hides its
+  badge only on its own day (the header shows it); overdue rows folded into Today
+  keep their past date visible. Today / burst / arc / tail rows all show the badge.
 
 ### Styling (`src/styles/app.css`)
-New classes: `.chip-due` (red calendar accent), `.agenda-day` (big number +
-weekday, per screenshot 5), `.agenda-month` (month section header),
-`.agenda-empty` (faint empty-day spacing), `.task-date-badge` (gray pill),
-`.date-popover` + grid cells. Colors via existing CSS variables.
+New classes: `.chip-due` (accent calendar chip), `.agenda-day` (big number +
+weekday, per screenshot 5; `.is-empty` faint, `.is-today` accent), `.agenda-month`
+(month section header), `.task-date-badge` (gray pill), `.date-popover` + grid
+cells (`.dp-*`). Colors via existing CSS variables.
 
 ## Complete / log behavior (falls out for free)
 
@@ -192,8 +205,9 @@ weekday, per screenshot 5), `.agenda-month` (month section header),
 
 **New:** `src/date.ts`, `src/ui/date-popover.ts`,
 `src-tauri/migrations/004_due_date.sql`.
-**Edited:** `src-tauri/src/lib.rs`, `src/state.ts`, `src/ui/todo-card.ts`,
-`src/ui/board.ts`, `src/ui/task-item.ts`, `src/icons.ts`, `src/styles/app.css`.
+**Edited:** `src-tauri/src/lib.rs`, `src/state.ts`, `src/app.ts`,
+`src/ui/todo-card.ts`, `src/ui/board.ts`, `src/ui/task-item.ts`, `src/icons.ts`,
+`src/styles/app.css`.
 
 ## Test / verification
 

@@ -5,6 +5,8 @@ import {
   setTaskNotes,
   setTaskStatus,
   setTaskSchedule,
+  setTaskDueDate,
+  setTaskDeadline,
   setTaskTags,
   getCheckpoints,
   addCheckpoint,
@@ -16,8 +18,12 @@ import {
   checkpointSortBetween,
 } from "../state";
 import { icon } from "../icons";
-import { springHeight, staggerReveal, autosizeHeight, revealRow, collapseRow } from "./anim";
+import { springHeight, staggerReveal, autosizeHeight, revealRow, collapseRow, spring, clamp01 } from "./anim";
+import { DISCLOSURE_SPRING } from "../spring";
+import { fromISODate, formatChip, deadlineLabel } from "../date";
+import { openDatePopover } from "./date-popover";
 import { enableDragReorder } from "./drag-reorder";
+import { CP_LIST, CP_ROW, CP_TOGGLE, CP_TOGGLE_ICON, CP_TITLE, CP_DEL, CP_HANDLE } from "./cls";
 
 export interface CardHandlers {
   onClose: () => void; // re-render board to reflect edits
@@ -156,7 +162,7 @@ export function openTodoCard(li: HTMLLIElement, task: Task, h: CardHandlers, car
   // neighbour sort_orders and delete can keep the list in step.
   let cps: Checkpoint[] = [];
   const cpList = document.createElement("div");
-  cpList.className = "card-cp-list";
+  cpList.className = CP_LIST;
   const removeCheckpoint = (cp: Checkpoint, row: HTMLElement): void => {
     cps = cps.filter((c) => c.id !== cp.id);
     void deleteCheckpoint(cp.id);
@@ -164,19 +170,22 @@ export function openTodoCard(li: HTMLLIElement, task: Task, h: CardHandlers, car
   };
   function checkpointRow(cp: Checkpoint): HTMLElement {
     const row = document.createElement("div");
-    row.className = "cp" + (cp.done ? " done" : "");
+    row.className = CP_ROW;
+    row.dataset.cp = ""; // drag-reorder + canStart hook
     row.dataset.id = String(cp.id); // drag-reorder keys off this
+    if (cp.done) row.dataset.done = ""; // styled via group-data-[done]:
     const toggle = document.createElement("button");
     toggle.type = "button";
-    toggle.className = "cp-toggle";
-    toggle.innerHTML = icon("check", 11);
+    toggle.className = CP_TOGGLE;
+    toggle.innerHTML = icon("check", 11, CP_TOGGLE_ICON);
     toggle.addEventListener("click", async () => {
       cp.done = !cp.done;
-      row.classList.toggle("done", cp.done);
+      row.toggleAttribute("data-done", cp.done);
       await toggleCheckpoint(cp.id, cp.done);
     });
     const input = document.createElement("input");
-    input.className = "cp-title";
+    input.className = CP_TITLE;
+    input.dataset.cpTitle = ""; // drag canStart + caret-hop hook
     input.value = cp.title;
     input.placeholder = "Checklist item";
     input.spellcheck = false;
@@ -189,7 +198,7 @@ export function openTodoCard(li: HTMLLIElement, task: Task, h: CardHandlers, car
       } else if (e.key === "Backspace" && input.value === "") {
         e.preventDefault();
         // delete the empty checkpoint and hop the caret to the end of the previous one
-        const prev = row.previousElementSibling?.querySelector<HTMLInputElement>(".cp-title") ?? null;
+        const prev = row.previousElementSibling?.querySelector<HTMLInputElement>("[data-cp-title]") ?? null;
         removeCheckpoint(cp, row);
         if (prev) {
           prev.focus();
@@ -198,12 +207,18 @@ export function openTodoCard(li: HTMLLIElement, task: Task, h: CardHandlers, car
       }
     });
     input.addEventListener("blur", () => void setCheckpointTitle(cp.id, input.value.trim()));
+    const handle = document.createElement("span");
+    handle.className = CP_HANDLE;
+    handle.dataset.cpHandle = ""; // the ONLY drag-start hook
+    handle.setAttribute("aria-label", "Drag to reorder");
+    handle.title = "Drag to reorder";
+    handle.innerHTML = icon("grip", 13);
     const del = document.createElement("button");
     del.type = "button";
-    del.className = "cp-del";
+    del.className = CP_DEL;
     del.innerHTML = icon("x", 12);
     del.addEventListener("click", () => removeCheckpoint(cp, row));
-    row.append(toggle, input, del);
+    row.append(toggle, input, handle, del);
     return row;
   }
   async function newCheckpoint(): Promise<void> {
@@ -212,7 +227,7 @@ export function openTodoCard(li: HTMLLIElement, task: Task, h: CardHandlers, car
     const row = checkpointRow(cp);
     cpList.appendChild(row);
     revealRow(row); // springs height 0→auto with a blur-fade-in
-    row.querySelector<HTMLInputElement>(".cp-title")?.focus();
+    row.querySelector<HTMLInputElement>("[data-cp-title]")?.focus();
   }
   void getCheckpoints(task.id).then((loaded) => {
     cps = loaded;
@@ -222,9 +237,12 @@ export function openTodoCard(li: HTMLLIElement, task: Task, h: CardHandlers, car
   // spring settle); dropping lands a fractional sort_order between neighbours.
   enableDragReorder(cpList, {
     canDrag: () => true,
-    rowSelector: ".cp",
+    rowSelector: "[data-cp]",
     clampToList: true,
-    canStart: (t) => !t.closest(".cp-title") && !t.closest(".cp-del"),
+    settleSpring: { stiffness: 950, damping: 48, mass: 0.6 }, // snappier FLIP for the tight checklist (~250ms, Emil <300ms)
+    // Reorder ONLY by grabbing the grip handle — leaves the title input fully
+    // free for editing (text select, ⌘C/⌘X/⌘A all work normally).
+    canStart: (t) => !!t.closest("[data-cp-handle]"),
     onDrop: (id, prevId, nextId) => {
       const sortOf = (cid: number | null) =>
         cid == null ? null : cps.find((c) => c.id === cid)?.sort_order ?? null;
@@ -236,35 +254,28 @@ export function openTodoCard(li: HTMLLIElement, task: Task, h: CardHandlers, car
     },
   });
 
-  // The schedule shows as a removable chip in the tags row — it's a label, not a
-  // section. "raw" (Anytime) is the unscheduled state, so it shows no chip. ⌘T sets
-  // Today; the × clears back to raw; clicking the chip toggles Today ↔ Future.
+  // The lane shows as a removable chip in the tags row. Only the dateless lanes
+  // (today/whenever/downtheroad) get a chip here — "future" is represented by the
+  // date chip instead, and "raw" (unscheduled) shows nothing. The × clears back to
+  // raw. ⌘T sets Today; a date sets Future. Lanes are mutually exclusive.
   const WHEN_META = {
     today: { ic: "today", label: "Today" },
-    future: { ic: "future", label: "Future" },
     whenever: { ic: "whenever", label: "Whenever" },
     downtheroad: { ic: "downtheroad", label: "Down the road" },
-    raw: { ic: "raws", label: "Anytime" },
   } as const;
   function renderWhen(): void {
     tagsWrap.querySelector(".chip-when")?.remove();
-    if (task.schedule === "raw") return;
-    const { ic, label } = WHEN_META[task.schedule];
+    const meta = WHEN_META[task.schedule as keyof typeof WHEN_META];
+    if (!meta) return; // raw → no chip; future → shown as the date chip
     const chip = document.createElement("span");
     chip.className = "chip chip-when" + (task.schedule === "today" ? " is-today" : "");
-    chip.innerHTML = `<span class="when-ic">${icon(ic, 12)}</span><span>${label}</span>`;
-    chip.addEventListener("click", async () => {
-      const next = task.schedule === "today" ? "future" : "today";
-      await setTaskSchedule(task.id, next);
-      task.schedule = next;
-      renderWhen();
-    });
+    chip.innerHTML = `<span class="when-ic">${icon(meta.ic, 12)}</span><span>${meta.label}</span>`;
     const rm = document.createElement("button");
     rm.type = "button";
     rm.className = "chip-x";
     rm.innerHTML = icon("x", 11);
     rm.addEventListener("click", async (e) => {
-      e.stopPropagation(); // don't also toggle via the chip body
+      e.stopPropagation();
       await setTaskSchedule(task.id, "raw");
       task.schedule = "raw";
       renderWhen();
@@ -273,6 +284,73 @@ export function openTodoCard(li: HTMLLIElement, task: Task, h: CardHandlers, car
     tagsWrap.insertBefore(chip, tagsWrap.firstChild); // sits ahead of the tags
   }
   renderWhen();
+
+  // The date IS the Future lane. Setting a date moves the to-do to Future (out of
+  // today/whenever/…); clearing it drops back to raw — setTaskDueDate handles the
+  // schedule flip, so we re-render both chips. The × clears; the chip body re-opens
+  // the picker. Set via the calendar meta-icon below.
+  const onDate = async (iso: string | null): Promise<void> => {
+    await setTaskDueDate(task.id, iso); // also flips schedule (future ⟺ dated)
+    task.due_date = iso;
+    renderDue(true);
+    renderWhen(); // a Today chip (etc.) must drop once this is Future
+  };
+  function renderDue(animate = false): void {
+    tagsWrap.querySelector(".chip-due")?.remove();
+    if (!task.due_date) return;
+    const chip = document.createElement("span");
+    chip.className = "chip chip-due";
+    chip.innerHTML = `<span class="when-ic">${icon("calendar", 12)}</span><span>${formatChip(fromISODate(task.due_date))}</span>`;
+    chip.addEventListener("click", () => openDatePopover(chip, task.due_date, onDate));
+    const rm = document.createElement("button");
+    rm.type = "button";
+    rm.className = "chip-x";
+    rm.innerHTML = icon("x", 11);
+    rm.addEventListener("click", (e) => {
+      e.stopPropagation(); // don't also re-open via the chip body
+      void onDate(null);
+    });
+    chip.appendChild(rm);
+    tagsWrap.insertBefore(chip, tagsWrap.querySelector(".chip-tag") ?? tagInput); // after the when chip, ahead of tags
+    if (animate) {
+      spring(chip, (t) => ({ opacity: String(clamp01(t)), transform: `scale(${0.9 + 0.1 * clamp01(t)})` }), DISCLOSURE_SPRING);
+    }
+  }
+  renderDue();
+
+  // The deadline shows as a removable chip (flag + date + countdown), red once
+  // overdue. Orthogonal to schedule/date — setting it doesn't move the to-do.
+  const onDeadline = async (iso: string | null): Promise<void> => {
+    await setTaskDeadline(task.id, iso);
+    task.deadline = iso;
+    renderDeadline(true);
+  };
+  function renderDeadline(animate = false): void {
+    tagsWrap.querySelector(".chip-deadline")?.remove();
+    if (!task.deadline) return;
+    const { text, overdue } = deadlineLabel(fromISODate(task.deadline), new Date());
+    const chip = document.createElement("span");
+    chip.className = "chip chip-deadline" + (overdue ? " is-overdue" : "");
+    chip.innerHTML =
+      `<span class="when-ic">${icon("flag", 12)}</span>` +
+      `<span>Deadline: ${formatChip(fromISODate(task.deadline))}</span>` +
+      `<span class="chip-sub">· ${text}</span>`;
+    chip.addEventListener("click", () => openDatePopover(chip, task.deadline, onDeadline));
+    const rm = document.createElement("button");
+    rm.type = "button";
+    rm.className = "chip-x";
+    rm.innerHTML = icon("x", 11);
+    rm.addEventListener("click", (e) => {
+      e.stopPropagation();
+      void onDeadline(null);
+    });
+    chip.appendChild(rm);
+    tagsWrap.insertBefore(chip, tagsWrap.querySelector(".chip-tag") ?? tagInput); // after when/due chips, ahead of tags
+    if (animate) {
+      spring(chip, (t) => ({ opacity: String(clamp01(t)), transform: `scale(${0.9 + 0.1 * clamp01(t)})` }), DISCLOSURE_SPRING);
+    }
+  }
+  renderDeadline();
 
   // meta row: tag/checklist/trash actions
   const meta = document.createElement("div");
@@ -283,7 +361,11 @@ export function openTodoCard(li: HTMLLIElement, task: Task, h: CardHandlers, car
   tagAction.addEventListener("click", () => tagInput.focus());
   const cpAction = metaIcon("checklist", "Add checklist item");
   cpAction.addEventListener("click", () => void newCheckpoint());
-  actions.append(tagAction, cpAction);
+  const dateAction = metaIcon("calendar", "Set date");
+  dateAction.addEventListener("click", () => openDatePopover(dateAction, task.due_date, onDate));
+  const deadlineAction = metaIcon("flag", "Set deadline");
+  deadlineAction.addEventListener("click", () => openDatePopover(deadlineAction, task.deadline, onDeadline));
+  actions.append(tagAction, cpAction, dateAction, deadlineAction);
 
   if (task.status === "trashed") {
     const restore = metaIcon("restore", "Restore");
@@ -372,17 +454,17 @@ export function openTodoCard(li: HTMLLIElement, task: Task, h: CardHandlers, car
     }
     if (!(e.metaKey || e.ctrlKey)) return;
     const k = e.key.toLowerCase();
-    if (k === "c") {
-      e.preventDefault();
-      e.stopPropagation();
-      void newCheckpoint();
-    } else if (k === "t") {
+    // (⌘C intentionally NOT bound — it must stay copy. Add checkpoints via the
+    // checklist icon or Enter on a checkpoint.)
+    if (k === "t") {
       e.preventDefault();
       e.stopPropagation();
       if (task.schedule !== "today") {
         task.schedule = "today"; // optimistic; clear with the chip's ×
+        task.due_date = null; // Today and Future(date) are mutually exclusive
         renderWhen();
-        void setTaskSchedule(task.id, "today");
+        renderDue(); // drop the date chip if it had one
+        void setTaskSchedule(task.id, "today"); // also clears due_date in the DB
       }
     } else if (k === "l") {
       e.preventDefault();
@@ -396,7 +478,9 @@ export function openTodoCard(li: HTMLLIElement, task: Task, h: CardHandlers, car
     }
   }
   function onDocMouseDown(e: MouseEvent): void {
-    if (!card.contains(e.target as Node)) collapse();
+    const t = e.target as HTMLElement;
+    // the date popover mounts in <body>, not in the card — treat it as inside
+    if (!card.contains(t) && !t.closest?.(".date-popover")) collapse();
   }
   document.addEventListener("keydown", onKey, true);
   // defer outside-click registration so the opening click doesn't immediately close it
@@ -413,7 +497,7 @@ export function openTodoCard(li: HTMLLIElement, task: Task, h: CardHandlers, car
     revealAnims.forEach((a) => a.cancel());
     // Row glyph reflects non-empty checkpoints only — recompute from the live
     // inputs before the row underneath re-renders.
-    const filled = [...cpList.querySelectorAll<HTMLInputElement>(".cp-title")].filter(
+    const filled = [...cpList.querySelectorAll<HTMLInputElement>("[data-cp-title]")].filter(
       (i) => i.value.trim() !== "",
     ).length;
     setCheckpointCount(task.id, filled);

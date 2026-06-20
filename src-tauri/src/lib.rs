@@ -21,6 +21,18 @@ pub fn run() {
             sql: include_str!("../migrations/003_burst_arc_notes.sql"),
             kind: MigrationKind::Up,
         },
+        Migration {
+            version: 4,
+            description: "task_due_date",
+            sql: include_str!("../migrations/004_due_date.sql"),
+            kind: MigrationKind::Up,
+        },
+        Migration {
+            version: 5,
+            description: "task_deadline",
+            sql: include_str!("../migrations/005_deadline.sql"),
+            kind: MigrationKind::Up,
+        },
     ];
 
     tauri::Builder::default()

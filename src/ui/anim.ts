@@ -43,6 +43,10 @@ const CARD_SPRING: SpringParams = { stiffness: 320, damping: 34, mass: 1 };
 // so a reveal doesn't bounce.
 const ROW_SPRING: SpringParams = { stiffness: 620, damping: 42, mass: 0.7 };
 
+// A bit quicker than the card grow, for the logged-items show/hide. Critically
+// damped (no bounce on a tall list), ~25% faster settle than CARD_SPRING.
+export const LIST_SPRING: SpringParams = { stiffness: 520, damping: 46, mass: 1 };
+
 // Each detail block fades up out of a blur — vertical only (the card never moves
 // sideways). A little overshoot in the easing gives the "alive" feel.
 const REVEAL_KEYFRAMES: Keyframe[] = [
@@ -90,8 +94,8 @@ export function autosizeHeight(el: HTMLTextAreaElement): void {
 }
 
 /** Spring an element's `height` from one px value to another. Returns the Animation. */
-export function springHeight(el: HTMLElement, from: number, to: number): Animation {
-  return spring(el, (t) => ({ height: `${lerp(from, to, t)}px` }), CARD_SPRING);
+export function springHeight(el: HTMLElement, from: number, to: number, params: SpringParams = CARD_SPRING): Animation {
+  return spring(el, (t) => ({ height: `${lerp(from, to, t)}px` }), params);
 }
 
 /**

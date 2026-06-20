@@ -9,6 +9,7 @@ export interface Shortcuts {
   deleteSelected: () => boolean; // returns true if a selected row was deleted
   undo: () => void;
   redo: () => void;
+  search: () => void;
 }
 
 function isEditable(target: EventTarget | null): boolean {
@@ -45,6 +46,10 @@ export function registerShortcuts(h: Shortcuts): void {
       // New to-do — works everywhere, even mid-edit.
       e.preventDefault();
       h.newTask();
+    } else if (key === "f") {
+      // Quick Find — works everywhere; preventDefault so the webview's native find doesn't fire.
+      e.preventDefault();
+      h.search();
     } else if (key === "\\") {
       // Toggle sidebar — works everywhere, even mid-edit.
       e.preventDefault();

@@ -19,13 +19,16 @@ import {
   duplicateTask,
   deleteBurst,
   deleteArc,
+  todoHomeView,
   type View,
   type ViewType,
   type Task,
 } from "./state";
+import { toISODate } from "./date";
 import { renderSidebar, setActive, setLaneName, refreshSidebarCounts, type SidebarHandlers } from "./ui/sidebar";
 import {
   renderBoard,
+  renderList,
   renderTagBar,
   renderLogged,
   moveTagIndicator,
@@ -44,6 +47,7 @@ import { setRingProgress } from "./ui/progress-ring";
 import { openTodoCard, closeTodoCard } from "./ui/todo-card";
 import { openNewPopover } from "./ui/new-popover";
 import { openSettings } from "./ui/settings";
+import { openSearch } from "./ui/search";
 import { registerShortcuts } from "./keyboard";
 import { undo as historyUndo, redo as historyRedo } from "./history";
 import { springPath, springDurationMs, TAB_SPRING } from "./spring";
@@ -94,7 +98,9 @@ export function mount(appRoot: HTMLElement): void {
   initResizeHandle(appRoot.querySelector<HTMLElement>("#sidebar-resize")!);
 
   enableDragReorder(listEl, {
-    canDrag: () => ["raw", "today", "future", "whenever", "downtheroad", "burst", "arc"].includes(state.view.type),
+    // Future is a date-grouped agenda (order is by date), so flat drag-reorder
+    // is disabled there — dates are changed via the card, not by dragging.
+    canDrag: () => ["raw", "today", "whenever", "downtheroad", "burst", "arc"].includes(state.view.type),
     onDrop: reorderTask,
     selectedIds: () => [...listEl.querySelectorAll<HTMLElement>(".task.selected")].map((r) => Number(r.dataset.id)),
     dropTargetAt: sidebarDropTarget,
@@ -124,7 +130,10 @@ export function mount(appRoot: HTMLElement): void {
     openLaneMenu(e.clientX, e.clientY, lane.dataset.view as "burst" | "arc", Number(lane.dataset.id));
   });
 
-  registerShortcuts({ newTask, newBurst, newArc, go: selectView, toggleSidebar, deleteSelected, undo, redo });
+  registerShortcuts({
+    newTask, newBurst, newArc, go: selectView, toggleSidebar, deleteSelected, undo, redo,
+    search: () => openSearch({ onPickView: selectView, onPickTodo: revealTodo }),
+  });
   window.addEventListener("resize", () => {
     if (sidebarOpen) {
       openW = clampWidth(openW);
@@ -321,6 +330,16 @@ function selectView(view: View): void {
   refreshCounts();
 }
 
+// Search → reveal a to-do: open its home view, scroll its row into view, highlight it.
+function revealTodo(task: Task): void {
+  selectView(todoHomeView(task));
+  const el = rowEl(task.id);
+  if (!el) return;
+  clearSelection();
+  el.classList.add("selected");
+  el.scrollIntoView({ block: "center" });
+}
+
 function boardHandlers(): BoardHandlers {
   return {
     view: state.view,
@@ -363,7 +382,9 @@ function sidebarDropTarget(x: number, y: number): HTMLElement | null {
   const item = document.elementFromPoint(x, y)?.closest<HTMLElement>("#sidebar .nav-item[data-view]");
   if (!item) return null;
   const v = item.dataset.view;
-  return v === "logs" || v === "bin" ? null : item;
+  // Logs/Bin: meaningless/destructive. Future: date-driven, so it's set via the
+  // card's date picker, not by dropping a (dateless) to-do here.
+  return v === "logs" || v === "bin" || v === "future" ? null : item;
 }
 
 // Commit a drag-move: re-file the to-do(s), then slide out the ones that no
@@ -433,7 +454,7 @@ function moveItems(ids: number[]): ContextItem[] {
   const items: ContextItem[] = [
     { label: "Raws", icon: "raws", onPick: () => void moveDraggedTo(ids, { type: "raw" }) },
     { label: "Today", icon: "today", onPick: () => void moveDraggedTo(ids, { type: "today" }) },
-    { label: "Future", icon: "future", onPick: () => void moveDraggedTo(ids, { type: "future" }) },
+    // No "Future" — a to-do reaches Future by being given a date (in its card).
     { label: "Whenever", icon: "whenever", onPick: () => void moveDraggedTo(ids, { type: "whenever" }) },
     { label: "Down the road", icon: "downtheroad", onPick: () => void moveDraggedTo(ids, { type: "downtheroad" }) },
   ];
@@ -466,11 +487,11 @@ function openLaneMenu(x: number, y: number, type: "burst" | "arc", id: number): 
     x,
     y,
     [
-      { label: "Rename", onPick: () => { selectView({ type, id }); focusHeaderTitle(boardRefs); } },
+      { label: "Rename", icon: "edit", onPick: () => { selectView({ type, id }); focusHeaderTitle(boardRefs); } },
       "sep",
       { label: type === "burst" ? "Delete burst" : "Delete arc", danger: true, icon: "bin", onPick: () => void deleteLane(type, id) },
     ],
-    { minWidth: 150, openMs: 130 }, // small + snappy for the tiny burst/arc menu
+    { minWidth: 132, openMs: 130 }, // small + snappy for the tiny burst/arc menu
   );
 }
 
@@ -519,6 +540,20 @@ async function newTask(): Promise<void> {
   if (state.view.type === "logs" || state.view.type === "bin") {
     selectView({ type: "today" });
   }
+  // In Future, a new to-do needs a date to have a home: use the selected row's
+  // day ("cursor last position"), else today. It lands under that day; expanding
+  // and changing the date moves it (closeTodoRow rebuilds).
+  if (state.view.type === "future") {
+    const sel = listEl.querySelector<HTMLElement>(".task.selected");
+    const selTask = sel ? state.tasks.find((t) => t.id === Number(sel.dataset.id)) : null;
+    const dayISO = selTask?.due_date ?? toISODate(new Date());
+    const task = await addTask(contextForView(state.view), dayISO);
+    renderList(boardRefs, state.view, boardHandlers());
+    refreshCounts();
+    const row = rowEl(task.id);
+    if (row) openTodo(task, row as HTMLLIElement);
+    return;
+  }
   const task = await addTask(contextForView(state.view));
   removeEmptyState();
   const el = createTaskEl(task, boardHandlers());
@@ -563,6 +598,14 @@ function openTodo(task: Task, li: HTMLLIElement, caret?: number): void {
 // Closing a card touches only THAT row — no full list rebuild (that was the
 // lag, and on ⌘N it used to nuke the freshly-opened card mid-type).
 function closeTodoRow(task: Task): void {
+  // Future agenda: a row's day-group depends on its date, which the card may have
+  // just changed — rebuild so it lands under the right day, rather than swapping
+  // the row in place where it used to sit.
+  if (state.view.type === "future") {
+    renderList(boardRefs, state.view, boardHandlers());
+    refreshCounts();
+    return;
+  }
   const el = rowEl(task.id);
   if (!el) {
     maybeEmpty();
@@ -652,6 +695,8 @@ function removeEmptyState(): void {
 }
 
 function maybeEmpty(): void {
+  // Future renders the dense calendar even with zero to-dos — never the hint.
+  if (state.view.type === "future") return;
   if (!listEl.querySelector(".task") && !listEl.querySelector(".empty")) {
     listEl.appendChild(emptyState(state.view));
   }

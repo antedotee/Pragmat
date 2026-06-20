@@ -6,7 +6,7 @@ dist
 dist-ssr
 *.local
 
-# rust / tauri
+# rust / tauri (build artifacts only — Cargo.toml & Cargo.lock MUST be committed)
 src-tauri/target
 
 # logs
@@ -20,13 +20,17 @@ npm-debug.log*
 .idea
 .DS_Store
 *.suo
-*.sw?\
+*.sw?
 
-src-tauri/target
-src-tauri/Cargo.lock
-src-tauri/Cargo.toml
-src-tauri/Cargo.lock
+# local AI / tooling caches (not app source)
+.claude/
+.agents/
+skills-lock.json
 
+# reference clone — its own git repo, not part of this app
+calendarcn/
+
+# local notes (delete these two lines if you want them in the repo)
 DESIGN.md
 CLAUDE.md
 

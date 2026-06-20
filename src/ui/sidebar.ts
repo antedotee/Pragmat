@@ -1,4 +1,4 @@
-import { state, countForView, burstProgress, type View, type ViewType, type Burst, type Arc } from "../state";
+import { state, countForView, burstProgress, anyOverdueDeadline, type View, type ViewType, type Burst, type Arc } from "../state";
 import { icon, type IconName } from "../icons";
 import { spring, lerp } from "./anim";
 import { enableDragReorder } from "./drag-reorder";
@@ -19,7 +19,9 @@ function navItem(type: ViewType, iconName: IconName, label: string, h: SidebarHa
   btn.className = "nav-item";
   btn.dataset.view = type;
   const count = withCount ? `<span class="nav-count">${countText(type)}</span>` : "";
-  btn.innerHTML = `<span class="nav-icon">${icon(iconName, 16)}</span><span class="nav-label">${label}</span>${count}`;
+  // Today carries a red overdue dot, toggled by refreshSidebarCounts.
+  const overdue = type === "today" ? `<span class="nav-overdue"></span>` : "";
+  btn.innerHTML = `<span class="nav-icon">${icon(iconName, 16)}</span><span class="nav-label">${label}</span>${overdue}${count}`;
   btn.addEventListener("click", () => h.onSelect({ type }));
   return btn;
 }
@@ -36,6 +38,9 @@ export function refreshSidebarCounts(root: HTMLElement): void {
     const el = root.querySelector<HTMLElement>(`.nav-item[data-view="${type}"]:not([data-id]) .nav-count`);
     if (el) el.textContent = countText(type);
   }
+  // Red dot on Today while any deadline is overdue (cleared once all are done).
+  const dot = root.querySelector<HTMLElement>(`.nav-item[data-view="today"]:not([data-id]) .nav-overdue`);
+  if (dot) dot.classList.toggle("on", anyOverdueDeadline());
   for (const b of state.bursts) {
     const svg = root.querySelector(`.nav-item.lane[data-view="burst"][data-id="${b.id}"] .pie`);
     if (svg) setRingProgress(svg, burstProgress(b.id));
@@ -58,7 +63,12 @@ function laneItem(type: "burst" | "arc", item: Burst | Arc, iconName: IconName, 
   label.className = "nav-label lane-name";
   label.textContent = item.name || (type === "burst" ? "New Burst" : "New Arc");
 
-  row.addEventListener("mousedown", () => h.onSelect({ type, id: item.id }));
+  // Primary button only — a right-click must open the context menu without
+  // selecting/navigating to the lane (mousedown fires for every button).
+  row.addEventListener("mousedown", (e) => {
+    if (e.button !== 0) return;
+    h.onSelect({ type, id: item.id });
+  });
   row.addEventListener("keydown", (e) => {
     if (e.key === "Enter" || e.key === " ") {
       e.preventDefault();

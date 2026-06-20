@@ -1,9 +1,10 @@
-import { state, tasksForView, loggedTasksForView, distinctTagsForView, burstProgress, type View, type Task } from "../state";
+import { state, tasksForView, loggedTasksForView, distinctTagsForView, burstProgress, futureAgenda, type View, type Task } from "../state";
+import { formatDayHeader, formatMonthHeader, sameDay, atMidnight, toISODate } from "../date";
 import { icon, type IconName } from "../icons";
 import { progressRing } from "./progress-ring";
 import { createTaskEl, type RowHandlers } from "./task-item";
 import { TAB_SPRING } from "../spring";
-import { autosizeTextarea, autosizeHeight, springHeight, staggerReveal, spring, lerp, clamp01 } from "./anim";
+import { autosizeTextarea, autosizeHeight, springHeight, spring, lerp, clamp01, LIST_SPRING } from "./anim";
 
 export interface BoardRefs {
   titleEl: HTMLElement;
@@ -242,12 +243,24 @@ function animateContentIn(el: HTMLElement): void {
 
 // Render the full to-do list (all rows for the view), optionally springing in.
 export function renderList(refs: BoardRefs, view: View, h: BoardHandlers, animateIn = false): void {
-  const tasks = tasksForView(view);
   refs.listEl.innerHTML = "";
+  // The Future view is a date agenda, not a flat list — and the dense current
+  // month always renders (even with zero to-dos), so it skips the empty state.
+  if (view.type === "future") {
+    renderAgenda(refs.listEl, h);
+    if (animateIn) animateContentIn(refs.listEl);
+    return;
+  }
+  const tasks = tasksForView(view);
   if (tasks.length === 0) {
     refs.listEl.appendChild(emptyState(view));
   } else if (view.type === "today") {
-    appendGroupedByLane(refs.listEl, tasks, h); // show which burst/arc each to-do belongs to
+    // Overdue-deadline to-dos surface flat at the very top (regardless of their
+    // burst/arc); the rest group under their lane headings.
+    const tISO = toISODate(atMidnight(new Date()));
+    const isOverdue = (t: Task) => t.deadline != null && t.deadline < tISO;
+    for (const t of tasks.filter(isOverdue)) refs.listEl.appendChild(createTaskEl(t, h));
+    appendGroupedByLane(refs.listEl, tasks.filter((t) => !isOverdue(t)), h);
   } else {
     for (const task of tasks) refs.listEl.appendChild(createTaskEl(task, h));
   }
@@ -280,6 +293,52 @@ function appendLane(list: HTMLElement, ic: IconName, name: string, tasks: Task[]
   for (const t of tasks) list.appendChild(createTaskEl(t, h));
 }
 
+// The Future agenda: every day of the current month as a header (empty days
+// included), then later months listing only their dated days. Future ⟺ a date,
+// so there's no "no date" group. Headers are plain <li> WITHOUT `.task`, so
+// selection + drag skip them. Dense-day rows hide their date badge (the header
+// shows it); tail rows keep the badge (grouped only by month). status==="open"
+// only — so a ticked row drops out and there's no logged section here.
+function renderAgenda(list: HTMLElement, h: BoardHandlers): void {
+  const { dense, tail } = futureAgenda();
+  const today = atMidnight(new Date());
+
+  for (const day of dense) {
+    list.appendChild(agendaDayHead(day.date, today, day.tasks.length === 0));
+    const dayISO = toISODate(day.date);
+    for (const t of day.tasks) {
+      // Hide the badge only when the row sits on its own day (the header shows it).
+      // Overdue to-dos fold into Today but keep their real (past) date visible.
+      list.appendChild(createTaskEl(t, h, { hideDate: t.due_date === dayISO }));
+    }
+  }
+  for (const m of tail) {
+    list.appendChild(agendaMonthHead(m.month, today));
+    for (const day of m.days) for (const t of day.tasks) list.appendChild(createTaskEl(t, h));
+  }
+}
+
+function agendaDayHead(date: Date, today: Date, empty: boolean): HTMLElement {
+  const li = document.createElement("li");
+  li.className = "agenda-day" + (empty ? " is-empty" : "") + (sameDay(date, today) ? " is-today" : "");
+  const { num, weekday } = formatDayHeader(date);
+  const n = document.createElement("span");
+  n.className = "agenda-day-num";
+  n.textContent = num;
+  const w = document.createElement("span");
+  w.className = "agenda-day-wd";
+  w.textContent = weekday;
+  li.append(n, w);
+  return li;
+}
+
+function agendaMonthHead(month: Date, today: Date): HTMLElement {
+  const li = document.createElement("li");
+  li.className = "agenda-month";
+  li.textContent = formatMonthHeader(month, today);
+  return li;
+}
+
 // Drop any group heading no longer followed by a to-do — e.g. when the last
 // to-do in a burst/arc group is completed/removed without a full re-render. A
 // heading owns rows until the next heading (or list end). No-op when ungrouped.
@@ -287,6 +346,12 @@ export function pruneEmptyGroups(list: HTMLElement): void {
   for (const head of list.querySelectorAll<HTMLElement>(".task-group")) {
     const next = head.nextElementSibling;
     if (!next || next.classList.contains("task-group")) head.remove();
+  }
+  // Agenda: drop a month header no longer followed by a to-do row. (Dense day
+  // headers are intentionally kept even when empty.)
+  for (const head of list.querySelectorAll<HTMLElement>(".agenda-month")) {
+    const next = head.nextElementSibling;
+    if (!next || !next.classList.contains("task")) head.remove();
   }
 }
 
@@ -345,26 +410,29 @@ export function renderLogged(refs: BoardRefs, view: View, h: BoardHandlers): voi
     setLabel();
     anim?.cancel();
     if (loggedExpanded) {
-      const rows = [...items.children] as HTMLElement[];
+      // Accordion open: rows stay visible and the growing (clipped) height reveals
+      // them top-down — one cohesive motion. (Hiding them during the grow and
+      // revealing only after grow.finished left the box empty for the whole
+      // 400ms+ spring → "invisible for a bit, then pops in".)
       items.style.height = "auto";
       const target = items.offsetHeight; // true open height
       items.style.height = "0px";
       items.style.overflow = "hidden";
-      for (const r of rows) r.style.opacity = "0"; // hidden while it grows
       void items.getBoundingClientRect();
-      anim = springHeight(items, 0, target);
-      anim.finished.then(
+      const grow = springHeight(items, 0, target, LIST_SPRING);
+      anim = grow;
+      grow.finished.then(
         () => {
+          grow.cancel(); // stop fill:forwards pinning the height before handing back to auto
           items.style.height = "auto"; // hand back to natural flow
           items.style.overflow = "visible";
-          staggerReveal(rows);
         },
         () => {}, // collapsed mid-grow
       );
     } else {
       const cur = items.offsetHeight;
       items.style.overflow = "hidden";
-      anim = springHeight(items, cur, 0);
+      anim = springHeight(items, cur, 0, LIST_SPRING);
     }
   });
 

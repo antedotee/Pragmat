@@ -1,4 +1,4 @@
-import { springPath, springDurationMs, TAB_SPRING } from "../spring";
+import { springPath, springDurationMs, TAB_SPRING, type SpringParams } from "../spring";
 
 // Pointer-drag for the to-do list (and, in a simpler mode, the sidebar lanes).
 // Two outcomes from one gesture, Finder-style:
@@ -16,6 +16,7 @@ export interface ReorderHandlers {
   rowSelector?: string; // draggable row class (default ".task")
   canStart?: (target: HTMLElement, row: HTMLElement) => boolean; // gate a press (default: skip checkbox / expanded card)
   clampToList?: boolean; // keep the dragged row inside the list's bounds (bursts/arcs stay in their section)
+  settleSpring?: SpringParams; // FLIP + drop-settle spring (default TAB_SPRING; snappier for tight lists)
   // --- cross-container move (to-do list only; omit for plain reorder lists) ---
   selectedIds?: () => number[]; // current multi-selection (drag the whole set if the grabbed row is in it)
   dropTargetAt?: (x: number, y: number) => HTMLElement | null; // sidebar slot under the cursor, or null
@@ -51,7 +52,7 @@ export function enableDragReorder(list: HTMLElement, h: ReorderHandlers): void {
   let badge: HTMLElement | null = null; // "N" count chip on the carried row
   const anims = new WeakMap<HTMLElement, Animation>();
   const follow2d = !!h.dropTargetAt; // to-do list: row follows the cursor in 2D; lanes: Y only
-  const SETTLE = springPath(0, 1, TAB_SPRING); // normalized spring used to settle a row back to its slot
+  const SETTLE = springPath(0, 1, h.settleSpring ?? TAB_SPRING); // normalized spring to settle a row to its slot
   const SETTLE_MS = springDurationMs(SETTLE);
   const preventSelect = (e: Event) => e.preventDefault(); // no text selection mid-press
   const ROW = h.rowSelector ?? ".task";
@@ -116,7 +117,8 @@ export function enableDragReorder(list: HTMLElement, h: ReorderHandlers): void {
     // fixed, so this survives DOM reorders), Y keeps the grab point under the
     // cursor relative to the row's current slot.
     const tx = follow2d ? clientX - startX : 0;
-    let top = clientY - grabOffset;
+    const rawTop = clientY - grabOffset; // cursor's true position (unclamped)
+    let top = rawTop;
     if (h.clampToList) {
       const lr = list.getBoundingClientRect();
       top = Math.max(lr.top, Math.min(lr.bottom - el.offsetHeight, top));
@@ -124,7 +126,10 @@ export function enableDragReorder(list: HTMLElement, h: ReorderHandlers): void {
     el.style.transform = `translate(${tx}px, ${top - naturalTop}px)`;
     if (slot) return; // carrying to a sidebar slot — don't reorder
 
-    const dragMid = top + el.offsetHeight / 2;
+    // Reorder by the cursor's TRUE midpoint, not the clamped visual one. With a
+    // flush-top list (e.g. checkpoints) the clamped midpoint can never cross the
+    // first row's midpoint, so the top slot was unreachable.
+    const dragMid = rawTop + el.offsetHeight / 2;
     const sibs = siblings();
     let before: HTMLElement | null = null;
     for (const r of sibs) {

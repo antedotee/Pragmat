@@ -1,0 +1,46 @@
+@import "tailwindcss";
+
+/*
+  Token bridge. The raw `--bg`, `--accent`, … custom properties are written at
+  runtime by themes.ts (applyTheme) onto :root — 17 swappable themes. `@theme
+  inline` maps them to Tailwind's color/radius/etc. scales WITHOUT baking in
+  literal values, so utilities like `bg-bg`, `text-faint`, `bg-accent`,
+  `rounded-card` resolve to the live vars and a theme swap propagates instantly.
+
+  Keep names short and intention-revealing:
+    bg / sidebar / surface / hover / sel        → surfaces
+    text / dim / faint                          → foreground tiers
+    line / check                                → borders
+    accent / accent-press / on-accent           → accent
+*/
+@theme inline {
+  --color-bg: var(--bg);
+  --color-sidebar: var(--bg-sidebar);
+  --color-surface: var(--surface);
+  --color-hover: var(--hover);
+  --color-sel: var(--sel);
+
+  --color-text: var(--text);
+  --color-dim: var(--text-dim);
+  --color-faint: var(--text-faint);
+
+  --color-line: var(--line);
+  --color-check: var(--check-border);
+
+  --color-accent: var(--accent);
+  --color-accent-press: var(--accent-press);
+  --color-on-accent: var(--on-accent);
+
+  --radius-row: var(--radius-row);
+  --radius-card: var(--radius-card);
+
+  --ease-out: var(--ease-out);
+  --ease-in-out: var(--ease-in-out);
+  --ease-spring: var(--ease-spring);
+
+  --font-sans: var(--font-sans);
+  --font-serif: var(--font-serif);
+  --font-mono: var(--font-mono);
+
+  --shadow-modal: var(--shadow-modal);
+}
