@@ -61,7 +61,9 @@ export function registerShortcuts(h: Shortcuts): void {
       // ⌘A stays "select all" while editing text; otherwise it makes an Arc.
       e.preventDefault();
       h.newArc();
-    } else if (key === "1") {
+    } else if (key === "t" || key === "1") {
+      // ⌘T → Today (⌘1 kept as an alias). ⌘T has no native text action, so it's
+      // safe to claim even while editing.
       e.preventDefault();
       h.go({ type: "today" });
     } else if (key === "2") {
